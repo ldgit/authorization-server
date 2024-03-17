@@ -6,7 +6,7 @@ const fastify = Fastify({
 });
 
 fastify.register(fastifyPostgres, {
-  connectionString: 'postgresql://user:S3cret@localhost:5432/postgres'
+  connectionString: 'postgresql://user:S3cret@localhost:5432/authorization_db',
 })
 
 fastify.get('/', (req, reply) => {
@@ -15,9 +15,9 @@ fastify.get('/', (req, reply) => {
 
 fastify.get('/user', function (req, reply) {
   fastify.pg.query(
-    'SELECT * FROM pg_catalog.pg_tables',
+    'SELECT * FROM users',
     function onResult (err, result) {
-      reply.send(err || result)
+      reply.send(err || result.rows)
     }
   )
 })
