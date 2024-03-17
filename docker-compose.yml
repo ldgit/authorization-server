@@ -14,21 +14,8 @@ services:
       - POSTGRES_PASSWORD=S3cret
       - POSTGRES_USER=user
       - POSTGRES_DB=authorization_db
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin4_container
-    restart: always
-    ports:
-      - "8888:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: user-name@domain-name.com
-      PGADMIN_DEFAULT_PASSWORD: strong-password
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
 
-
-volumes:
-  # Uncomment this to persist data when restarting the container.
+# Uncomment this to persist data when restarting the container.
+# volumes:
   # db:
   #   driver: local
-  pgadmin-data:
