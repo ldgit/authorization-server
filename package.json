@@ -9,13 +9,13 @@
     "dev": "tsx watch index.ts",
     "build": "tsc -p tsconfig.json",
     "migrations": "node bin/migrate.js",
-    "dummy-data": "node bin/dummy_data.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dummy-data": "tsx bin/dummy_data.ts",
+    "dev-db": "docker-compose up -d && npm run migrations && npm run dummy-data",
+    "test": "vitest"
   },
   "author": "Danko Lučić",
   "license": "AGPL-3.0-only",
   "dependencies": {
-    "@fastify/postgres": "^5.2.2",
     "argon2": "^0.40.1",
     "fastify": "^4.26.1",
     "pg": "^8.11.3",
@@ -24,8 +24,11 @@
   "devDependencies": {
     "@types/node": "^20.11.24",
     "@types/pg": "^8.11.2",
+    "@types/uuid": "^9.0.8",
     "fastify-tsconfig": "^2.0.0",
     "tsx": "^4.7.1",
-    "typescript": "^5.4.2"
+    "typescript": "^5.4.2",
+    "uuid": "^9.0.1",
+    "vitest": "^1.4.0"
   }
 }
