@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import Postgrator from "postgrator";
 import pg from "pg";
 import { dirname } from "path";
@@ -8,11 +9,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 async function main() {
   // Create a client of your choice
   const client = new pg.Client({
-    host: "localhost",
-    port: 5432,
-    database: "authorization_db",
-    user: "user",
-    password: "S3cret",
+    host: process.env.POSTGRES_HOST,
+    port: process.env.POSTGRES_PORT,
+    database: process.env.POSTGRES_DB,
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD,
   });
 
   try {
@@ -20,7 +21,7 @@ async function main() {
     const postgrator = new Postgrator({
       migrationPattern: __dirname + "/../migrations/*",
       driver: "pg",
-      database: "authorization_db",
+      database: process.env.POSTGRES_DB,
       schemaTable: "migrations",
       currentSchema: 'public',
       execQuery: (query) => client.query(query),
