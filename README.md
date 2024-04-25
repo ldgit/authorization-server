@@ -1,5 +1,9 @@
 # Authorization Server
 
+OAuth 2.0 authorization server implementation. Follows specification defined in:
+- [IETF RFC 6749 The OAuth 2.0 Authorization Framework](https://datatracker.ietf.org/doc/html/rfc6749.html) 
+- [IETF RFC 6750 The OAuth 2.0 Authorization Framework: Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750.html)
+
 ## Development
 
 Steps to run locally:
