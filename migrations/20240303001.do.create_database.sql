@@ -12,5 +12,6 @@ CREATE TABLE IF NOT EXISTS clients (
   created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   name text NOT NULL,
   description text NOT NULL,
-  secret text NOT NULL
+  secret text NOT NULL,
+  redirect_uri text NOT NULL
 );
