@@ -39,6 +39,7 @@ async function main() {
     // If error happened partially through migrations,
     // error object is decorated with appliedMigrations
     console.error('An error occurred: ' + error); // array of migration objects
+    process.exit(1);
   }
 
   // Once done migrating, close your connection.

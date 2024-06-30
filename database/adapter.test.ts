@@ -5,7 +5,7 @@ import { QueryResult } from 'pg';
 
 describe('database adapter', () => {
   beforeAll(async () => {
-    query('TRUNCATE users');
+    query('TRUNCATE users CASCADE');
   });
 
   it('transactionQuery should insert a user into the database', async () => {

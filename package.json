@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "migrations": "node bin/migrate.js",
     "dummy-data": "tsx bin/dummy_data.ts",
-    "dev-db": "docker-compose up -d && npm run migrations && npm run dummy-data",
+    "dev-db": "npm run migrations && npm run dummy-data",
     "test": "vitest"
   },
   "author": "Danko Lučić",
