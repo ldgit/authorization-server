@@ -1,21 +1,27 @@
 import 'dotenv/config';
-import Fastify from 'fastify';
-import {query} from './database/adapter.ts';
+import Fastify, { FastifyInstance } from 'fastify';
+import frontendRoutes from './routes/frontend.ts'
+import apiRoutes from './routes/api.ts'
+import pointOfView from '@fastify/view';
+import path from 'path';
+import ejs from 'ejs';
 
-const fastify = Fastify({
+const fastify: FastifyInstance = Fastify({
   logger: true
 });
 
-fastify.get('/', (req, reply) => {
-  reply.send({ message: "Hello world"})
+fastify.register(pointOfView, {
+  engine: { ejs },
+  templates: path.join(import.meta.dirname, 'templates'),
+  layout: 'layout.ejs',
 })
+fastify.register(frontendRoutes);
+fastify.register(apiRoutes);
 
-fastify.get('/user', async function (req, reply) {
-  const result = await query('SELECT * FROM users')
-  reply.send(result.rows);
-})
-
-fastify.listen({ port: 3000 }, err => {
-  if (err) throw err
-  console.log(`server listening on ${fastify.server.address().port}`)
+fastify.listen({ port: 3000 }, (err, address) => {
+  if (err) {
+    fastify.log.error(err)
+    process.exit(1)
+  }
+  console.log(`Server listening on ${fastify.server.address()!.port}`)
 })
