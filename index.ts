@@ -12,7 +12,7 @@ const fastify: FastifyInstance = Fastify({
 
 fastify.register(pointOfView, {
   engine: { ejs },
-  templates: path.join(import.meta.dirname, 'templates'),
+  templates: path.join(import.meta.dirname, 'frontend/templates'),
   layout: 'layout.ejs',
 })
 fastify.register(frontendRoutes);

@@ -7,10 +7,12 @@
   "scripts": {
     "start": "node build/index.js",
     "dev": "tsx watch index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && npm run styles-prod",
     "migrations": "node bin/migrate.js",
     "dummy-data": "tsx bin/dummy_data.ts",
     "dev-db": "npm run migrations && npm run dummy-data",
+    "styles": "tailwindcss -i ./frontend/styles/input.css -o ./public/build/style.css",
+    "styles-prod": "npm run styles -- --minify",
     "test": "vitest"
   },
   "author": "Danko Lučić",
@@ -31,6 +33,7 @@
     "@types/pg": "^8.11.2",
     "@types/uuid": "^9.0.8",
     "fastify-tsconfig": "^2.0.0",
+    "tailwindcss": "^3.4.4",
     "tsx": "^4.7.1",
     "typescript": "^5.4.2",
     "uuid": "^9.0.1",
