@@ -18,6 +18,14 @@ describe('database adapter', () => {
     expect(result.rows[0].password).toEqual('this is a password hash');
   })
 
+  it('should protect from sql injection', async () => {
+    const username = `Robert'); DROP TABLE users; --`;
+    /** Uncomment the query bellow for comparison of what happens if we don't use parametrized query. */
+    // await query(`SELECT firstname, lastname, username, password FROM users WHERE username = ${username}`);
+    const result = await query('SELECT firstname, lastname, username, password FROM users WHERE username = $1', [username]);
+    expect(result.rowCount).toEqual(0);
+  })
+
   it('transactionQuery should insert a user into the database', async () => {
     let expectedUserId = '';
 
