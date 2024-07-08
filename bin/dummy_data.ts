@@ -11,16 +11,16 @@ async function createDummyData() {
   
   await db.transactionQuery(async (client) => {
     const queryText = 'INSERT INTO users(firstname, lastname, username, "password") VALUES($1, $2, $3, $4) RETURNING id';
+
     let hash = await argon2.hash(password);
-    
-    await client.query(queryText, ['john', 'roe', 'jRoe42', hash])
-    console.log('Created user jRoe42');
+    await client.query(queryText, ['Mark', 'Scout', 'MarkS', hash])
+    console.log('Created user MarkS');
     hash = await argon2.hash(password);
-    await client.query(queryText, ['jane', 'doe', 'jDoe', hash])
-    console.log('Created user jDoe');
+    await client.query(queryText, ['Helly', 'Riggs', 'HellyR', hash])
+    console.log('Created user HellyR');
     hash = await argon2.hash(password);
-    await client.query(queryText, ['jack', 'hoe', 'jHoe80', hash])
-    console.log('Created user jHoe80');
+    await client.query(queryText, ['Irving', 'Bailiff', 'IrvingB', hash])
+    console.log('Created user IrvingB');
     console.log('All users use same password: "test"');
   }, { destroyClient: true });
   
