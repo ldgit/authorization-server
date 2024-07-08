@@ -5,8 +5,18 @@ import { QueryResult } from 'pg';
 
 describe('database adapter', () => {
   beforeAll(async () => {
-    query('TRUNCATE users CASCADE');
+    await query('TRUNCATE users CASCADE');
   });
+
+  it('should support storing and fetching data from database', async () => {
+    await query('INSERT INTO users(firstname, lastname, username, "password") VALUES($1, $2, $3, $4)', ['Mark', 'Scout', 'MarkS', 'this is a password hash'])
+    const result = await query('SELECT firstname, lastname, username, password FROM users WHERE username = $1', ['MarkS']);
+    expect(result.rowCount).toEqual(1);
+    expect(result.rows[0].username).toEqual('MarkS');
+    expect(result.rows[0].firstname).toEqual('Mark');
+    expect(result.rows[0].lastname).toEqual('Scout');
+    expect(result.rows[0].password).toEqual('this is a password hash');
+  })
 
   it('transactionQuery should insert a user into the database', async () => {
     let expectedUserId = '';
@@ -14,7 +24,7 @@ describe('database adapter', () => {
     const result = await transactionQuery(async (client) => {
       expectedUserId = uuidv4();
       return await client.query('INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id', [
-        expectedUserId, 'Jane', 'Doe', 'user1', 'lets pretend this is a password hash',
+        expectedUserId, 'Helly', 'Riggs', 'HellyR', 'this is a password hash',
       ]);
     }) as QueryResult;
 
@@ -29,11 +39,11 @@ describe('database adapter', () => {
     await transactionQuery(async (client) => {
       firstUserId = uuidv4();
       await client.query('INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id', [
-        firstUserId, 'Jill', 'Doe', 'user2', 'lets pretend this is a password hash',
+        firstUserId, 'Jill', 'Doe', 'user2', 'this is a password hash',
       ]);
       // This one should fail because of unique constraint on `username` field.
       await client.query('INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id', [
-        uuidv4(), 'Jack', 'Doe', 'user2', 'lets pretend this is a password hash',
+        uuidv4(), 'Jack', 'Doe', 'user2', 'this is a password hash',
       ]);
     });
 
@@ -55,7 +65,7 @@ describe('database adapter', () => {
     await transactionQuery(async (client) => {
       firstUserId = uuidv4();
       await client.query('INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id', [
-        firstUserId, 'Jill', 'Doe', 'user2', 'lets pretend this is a password hash',
+        firstUserId, 'Jill', 'Doe', 'user2', 'this is a password hash',
       ]);
       
       throw new Error('test')
