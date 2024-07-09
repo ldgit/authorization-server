@@ -1,7 +1,6 @@
 import "dotenv/config";
 import Fastify, { type FastifyInstance } from "fastify";
 import frontendRoutes from "./routes/frontend.ts";
-import apiRoutes from "./routes/api.ts";
 import pointOfView from "@fastify/view";
 import path from "node:path";
 import ejs from "ejs";
@@ -9,7 +8,6 @@ import formbody from "@fastify/formbody";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import fastifyCookie from "@fastify/cookie";
 import type { FastifyCookieOptions } from "@fastify/cookie";
-import type { AddressInfo } from "node:net";
 
 const fastify: FastifyInstance = Fastify({
 	logger: true,
@@ -24,7 +22,6 @@ fastify.register(fastifyCookie, {
 	parseOptions: {}, // options for parsing cookies
 } as FastifyCookieOptions);
 fastify.register(formbody);
-fastify.register(apiRoutes);
 
 fastify.register(pointOfView, {
 	engine: { ejs },
@@ -33,10 +30,10 @@ fastify.register(pointOfView, {
 });
 fastify.register(frontendRoutes);
 
-fastify.listen({ port: 3000 }, (err) => {
+fastify.listen({ port: 3000 }, (err, address) => {
 	if (err) {
 		fastify.log.error(err);
 		process.exit(1);
 	}
-	console.log(`Server listening on ${(fastify.server.address() as AddressInfo).port}`);
+	console.log(`Server listening on ${address}`);
 });

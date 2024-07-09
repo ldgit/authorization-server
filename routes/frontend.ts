@@ -21,6 +21,7 @@ export default async function frontend(fastify: FastifyInstance) {
 
 	// Make `user` available in all view templates.
 	fastify.addHook("preHandler", async function (request, reply) {
+		// @ts-ignore
 		reply.locals = {
 			user: await getSignedInUser(request),
 		};
