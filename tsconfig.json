@@ -1,10 +1,10 @@
 {
-  "extends": "fastify-tsconfig",
-  "compilerOptions": {
-    "outDir": "build",
-    "lib": ["es2023"],
-    "esModuleInterop": true,
-    "module": "ESNext",
-  },
-  "allowImportingTsExtensions": true
+	"extends": "fastify-tsconfig",
+	"compilerOptions": {
+		"outDir": "build",
+		"lib": ["es2023"],
+		"esModuleInterop": true,
+		"module": "ESNext"
+	},
+	"allowImportingTsExtensions": true
 }

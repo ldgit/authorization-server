@@ -1,88 +1,108 @@
-import { beforeAll, describe, expect, it } from 'vitest';
-import { v4 as uuidv4 } from 'uuid';
-import { transactionQuery, query } from './adapter.ts';
-import { QueryResult } from 'pg';
+import { beforeAll, describe, expect, it } from "vitest";
+import { v4 as uuidv4 } from "uuid";
+import { transactionQuery, query } from "./adapter.ts";
+import type { QueryResult } from "pg";
 
-describe('database adapter', () => {
-  beforeAll(async () => {
-    await query('TRUNCATE users CASCADE');
-  });
+const passwordHash =
+	"$argon2id$v=19$m=65536,t=3,p=4$P5wGfnyG6tNP2iwvWPp9SA$Gp3wgJZC1xe6fVzUTMmqgCGgFPyZeCt1aXjUtlwSMmo";
 
-  it('should support storing and fetching data from database', async () => {
-    await query('INSERT INTO users(firstname, lastname, username, "password") VALUES($1, $2, $3, $4)', ['Mark', 'Scout', 'MarkS', 'this is a password hash'])
-    const result = await query('SELECT firstname, lastname, username, password FROM users WHERE username = $1', ['MarkS']);
-    expect(result.rowCount).toEqual(1);
-    expect(result.rows[0].username).toEqual('MarkS');
-    expect(result.rows[0].firstname).toEqual('Mark');
-    expect(result.rows[0].lastname).toEqual('Scout');
-    expect(result.rows[0].password).toEqual('this is a password hash');
-  })
+describe("database adapter", () => {
+	beforeAll(async () => {
+		await query("TRUNCATE users CASCADE");
+	});
 
-  it('should protect from sql injection', async () => {
-    const username = `Robert'); DROP TABLE users; --`;
-    /** Uncomment the query bellow for comparison of what happens if we don't use parametrized query. */
-    // await query(`SELECT firstname, lastname, username, password FROM users WHERE username = ${username}`);
-    const result = await query('SELECT firstname, lastname, username, password FROM users WHERE username = $1', [username]);
-    expect(result.rowCount).toEqual(0);
-  })
+	it("should support storing and fetching data from database", async () => {
+		await query(
+			'INSERT INTO users(firstname, lastname, username, "password") VALUES($1, $2, $3, $4)',
+			["Mark", "Scout", "MarkS", passwordHash],
+		);
+		const result = await query(
+			"SELECT firstname, lastname, username, password FROM users WHERE username = $1",
+			["MarkS"],
+		);
+		expect(result.rowCount).toEqual(1);
+		expect(result.rows[0].username).toEqual("MarkS");
+		expect(result.rows[0].firstname).toEqual("Mark");
+		expect(result.rows[0].lastname).toEqual("Scout");
+		expect(result.rows[0].password).toEqual(passwordHash);
+	});
 
-  it('transactionQuery should insert a user into the database', async () => {
-    let expectedUserId = '';
+	it("should protect from sql injection", async () => {
+		const username = `Robert'); DROP TABLE users; --`;
+		/** Uncomment the query bellow for comparison of what happens if we don't use parametrized query. */
+		// await query(`SELECT firstname, lastname, username, password FROM users WHERE username = ${username}`);
+		const result = await query(
+			"SELECT firstname, lastname, username, password FROM users WHERE username = $1",
+			[username],
+		);
+		expect(result.rowCount).toEqual(0);
+	});
 
-    const result = await transactionQuery(async (client) => {
-      expectedUserId = uuidv4();
-      return await client.query('INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id', [
-        expectedUserId, 'Helly', 'Riggs', 'HellyR', 'this is a password hash',
-      ]);
-    }) as QueryResult;
+	it("transactionQuery should insert a user into the database", async () => {
+		let expectedUserId = "";
 
-    expect(result.rowCount).toEqual(1);
-    expect(result.rows[0].id).toEqual(expectedUserId);
-  });
+		const result = (await transactionQuery(async (client) => {
+			expectedUserId = uuidv4();
+			return await client.query(
+				'INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id',
+				[expectedUserId, "Helly", "Riggs", "HellyR", passwordHash],
+			);
+		})) as QueryResult;
 
-  it('transactionQuery should rollback all changes in case of query failure', async () => {
-    let firstUserId = '';
+		expect(result.rowCount).toEqual(1);
+		expect(result.rows[0].id).toEqual(expectedUserId);
+	});
 
-    const invalidInsertion = async () =>
-    await transactionQuery(async (client) => {
-      firstUserId = uuidv4();
-      await client.query('INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id', [
-        firstUserId, 'Jill', 'Doe', 'user2', 'this is a password hash',
-      ]);
-      // This one should fail because of unique constraint on `username` field.
-      await client.query('INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id', [
-        uuidv4(), 'Jack', 'Doe', 'user2', 'this is a password hash',
-      ]);
-    });
+	it("transactionQuery should rollback all changes in case of query failure", async () => {
+		let firstUserId = "";
 
-    await expect(async () => await invalidInsertion()).rejects.toThrowError('duplicate key value violates unique constraint "users_username_key"');
-    const result = await query('SELECT * FROM users WHERE id=$1::uuid', [firstUserId])
-    expect(result.rowCount).toEqual(0);
-  });
+		const invalidInsertion = async () => {
+			firstUserId = uuidv4();
+			const secondUserId = uuidv4();
+			await transactionQuery(async (client) => {
+				await client.query(
+					'INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id',
+					[firstUserId, "Jill", "Doe", "user2", passwordHash],
+				);
+				// This one should fail because of unique constraint on `username` field.
+				await client.query(
+					'INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id',
+					[secondUserId, "Jack", "Doe", "user2", passwordHash],
+				);
+			});
+		};
 
-  it('transactionQuery should release clients', async () => {
-    for (let index = 0; index < 100; index++) {
-      await transactionQuery(async (client) => { return await client.query('SELECT * FROM users'); })
-    }
-  });
+		await expect(async () => await invalidInsertion()).rejects.toThrowError(
+			'duplicate key value violates unique constraint "users_username_key"',
+		);
+		const result = await query("SELECT * FROM users WHERE id=$1::uuid", [firstUserId]);
+		expect(result.rowCount).toEqual(0);
+	});
 
-  it('transactionQuery should rollback all changes in case of code error', async () => {
-    let firstUserId = '';
+	it("transactionQuery should release clients", async () => {
+		for (let index = 0; index < 100; index++) {
+			await transactionQuery(async (client) => {
+				return await client.query("SELECT * FROM users");
+			});
+		}
+	});
 
-    const invalidInsertion = async () =>
-    await transactionQuery(async (client) => {
-      firstUserId = uuidv4();
-      await client.query('INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id', [
-        firstUserId, 'Jill', 'Doe', 'user2', 'this is a password hash',
-      ]);
-      
-      throw new Error('test')
-    })
+	it("transactionQuery should rollback all changes in case of code error", async () => {
+		let firstUserId = "";
 
-    await expect(async () => await invalidInsertion()).rejects.toThrowError('test');
-    const result = await query('SELECT * FROM users WHERE id=$1::uuid', [firstUserId])
-    expect(result.rowCount).toEqual(0);
-  });
-})
+		const invalidInsertion = async () =>
+			await transactionQuery(async (client) => {
+				firstUserId = uuidv4();
+				await client.query(
+					'INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id',
+					[firstUserId, "Jill", "Doe", "user2", passwordHash],
+				);
 
+				throw new Error("test");
+			});
 
+		await expect(async () => await invalidInsertion()).rejects.toThrowError("test");
+		const result = await query("SELECT * FROM users WHERE id=$1::uuid", [firstUserId]);
+		expect(result.rowCount).toEqual(0);
+	});
+});
