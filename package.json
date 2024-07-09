@@ -18,8 +18,12 @@
   "author": "Danko Lučić",
   "license": "AGPL-3.0-only",
   "dependencies": {
+    "@fastify/cookie": "^9.3.1",
+    "@fastify/formbody": "^7.4.0",
     "@fastify/static": "^7.0.4",
+    "@fastify/type-provider-typebox": "^4.0.0",
     "@fastify/view": "^9.1.0",
+    "@sinclair/typebox": "^0.32.34",
     "argon2": "^0.40.1",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",

@@ -1,35 +1,87 @@
-import Static from '@fastify/static';
+import StaticServer from '@fastify/static';
 import path from 'path';
+import { Static, Type } from '@sinclair/typebox';
+import { FastifyInstance } from 'fastify';
+import { query } from '../database/adapter.ts';
+import * as argon2 from "argon2";
+import {getSignedInUser, isUserSignedIn} from '../library/authentication.ts';
 
-export default async function frontend(fastify, opts) {
-  await fastify.register(Static, {
+const User = Type.Object({
+  username: Type.String(),
+  password: Type.String(),
+});
+
+type UserType = Static<typeof User>;
+
+export default async function frontend(fastify: FastifyInstance, opts) {
+  await fastify.register(StaticServer, {
     root: path.join(import.meta.dirname, '..', 'public'),
     prefix: '/'
   })
 
-  fastify.get('/', async function(req, reply) {
-    reply.view("homePage.ejs", { text: "text" });
-  })
+  // Make `user` available in all view templates.
+  fastify.addHook("preHandler", async function (request, reply) {
+    reply.locals = {
+      user: await getSignedInUser(request),
+    };
+  });
 
-  function isUserSignedIn(): boolean {
-    return false;
-  }
+  fastify.get('/', async function(request, reply) {
+    if (!await isUserSignedIn(request)) {
+      return reply.redirect('/login');
+    }
+    return reply.view("homePage.ejs",);
+  })
 
   /**
    * Login page.
    */
-  fastify.get('/login', async function(req, reply) {
-    if(isUserSignedIn()) {
+  fastify.get('/login', async function(request, reply) {
+    if(await isUserSignedIn(request)) {
       return reply.redirect('/');
     }
 
-    return reply.view("loginPage.ejs", { text: "world" });
+    return reply.view("loginPage.ejs");
   });
 
   /**
    * Handles login page submit action.
    */
-  fastify.post('/login', async function(req, reply) {
+  fastify.post<{ Body: UserType }>('/login', { 
+    schema: {
+      body: User,
+    }
+  }, async function(request, reply) {
+    const { username, password } = request.body;
+    if (!username || !password ) {
+      return reply.redirect('/login?error=1')
+    }
 
+    const result = await query('SELECT id, username, password FROM users WHERE username = $1', [username]);
+    if (result.rowCount !== 1) {
+      return reply.redirect('/login?error=1')
+    }
+
+    const user = result.rows[0];
+
+    if (user.username !== username) {
+      return reply.redirect('/login?error=1')
+    }
+
+    const passwordMatches = await argon2.verify(user.password, password)
+    if (!passwordMatches) {
+      return reply.redirect('/login?error=1')
+    }
+
+    const sessionId = (await query('INSERT INTO sessions(user_id) VALUES($1) RETURNING id', [user.id])).rows[0].id;
+    reply.setCookie('session', sessionId, {
+      httpOnly: true,
+      // Expires after one week.
+      maxAge: 604.800,
+      sameSite: 'strict',
+      secure: 'auto',
+    });
+
+    return reply.redirect('/')
   });
 }
