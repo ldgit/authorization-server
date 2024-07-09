@@ -27,10 +27,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		};
 	});
 
-	fastify.get("/", async function (request, reply) {
-		if (!(await isUserSignedIn(request))) {
-			return reply.redirect("/login");
-		}
+	fastify.get("/", function (request, reply) {
 		return reply.view("homePage.ejs");
 	});
 
