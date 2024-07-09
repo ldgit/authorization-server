@@ -4,14 +4,28 @@ import { type Static, Type } from "@sinclair/typebox";
 import type { FastifyInstance } from "fastify";
 import { query } from "../database/adapter.ts";
 import * as argon2 from "argon2";
-import { getSignedInUser, isUserSignedIn } from "../library/authentication.ts";
+import {
+	getSignedInUser,
+	isUserSignedIn,
+	createNewAccount,
+	signInUser,
+	type SetCookieHandler,
+} from "../library/authentication.ts";
 
-const User = Type.Object({
+const UserLogin = Type.Object({
 	username: Type.String(),
 	password: Type.String(),
 });
 
-type UserType = Static<typeof User>;
+const UserRegister = Type.Object({
+	name: Type.String(),
+	surname: Type.String(),
+	username: Type.String(),
+	password: Type.String(),
+});
+
+type UserLoginType = Static<typeof UserLogin>;
+export type UserRegisterType = Static<typeof UserRegister>;
 
 export default async function frontend(fastify: FastifyInstance) {
 	await fastify.register(StaticServer, {
@@ -31,9 +45,25 @@ export default async function frontend(fastify: FastifyInstance) {
 		return reply.view("homePage.ejs");
 	});
 
-	/**
-	 * Login page.
-	 */
+	fastify.get("/register", async function (request, reply) {
+		if (await isUserSignedIn(request)) {
+			return reply.redirect("/");
+		}
+
+		return reply.view("registerPage.ejs");
+	});
+
+	fastify.post<{ Body: UserRegisterType }>("/register", async function (request, reply) {
+		if (await isUserSignedIn(request)) {
+			return reply.redirect("/");
+		}
+
+		const userId = await createNewAccount(request.body);
+		await signInUser(userId, reply.setCookie.bind(reply) as SetCookieHandler);
+
+		return reply.redirect("/");
+	});
+
 	fastify.get("/login", async function (request, reply) {
 		if (await isUserSignedIn(request)) {
 			return reply.redirect("/");
@@ -45,9 +75,9 @@ export default async function frontend(fastify: FastifyInstance) {
 	/**
 	 * Handles login page submit action.
 	 */
-	fastify.post<{ Body: UserType }>(
+	fastify.post<{ Body: UserLoginType }>(
 		"/login",
-		{ schema: { body: User } },
+		{ schema: { body: UserLogin } },
 		async function (request, reply) {
 			const { username, password } = request.body;
 			if (!username || !password) {
@@ -73,17 +103,7 @@ export default async function frontend(fastify: FastifyInstance) {
 				return reply.redirect("/login?error=1");
 			}
 
-			const sessionId = (
-				await query("INSERT INTO sessions(user_id) VALUES($1) RETURNING id", [user.id])
-			).rows[0].id as string;
-
-			reply.setCookie("session", sessionId, {
-				httpOnly: true,
-				// Expires after one week.
-				maxAge: 604800,
-				sameSite: "strict",
-				secure: "auto",
-			});
+			await signInUser(user.id, reply.setCookie.bind(reply) as SetCookieHandler);
 
 			return reply.redirect("/");
 		},
