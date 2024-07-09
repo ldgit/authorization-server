@@ -1,18 +1,12 @@
-<%- include('header', { title: 'Enter your credentials' }); %>
+<%- include('header', { title: 'Enter Your Credentials' }); %>
 
 <main class="container mx-auto min-w-fit flex flex-col items-center text-center justify-center">
   <form action="" method="post" class="flex flex-col items-start text-left size-max">
     <div class="m-2">
-      <label>
-        <span class="mx-1 w-32 inline-block">Username:</span> 
-        <input class="border-2 px-2 py-1 hover:border-dashed focus:border-solid rounded-md" type="text" name="username" required />
-      </label>
+      <%- include('textInput', { label: 'Username:', type: 'text', name: 'username' }); %>
     </div>
     <div class="m-2">
-      <label>
-        <span class="mx-1 w-32 inline-block"> Password:</span> 
-        <input class="border-2 px-2 py-1 hover:border-dashed focus:border-solid rounded-md" type="password" name="password" required />
-      </label>
+      <%- include('textInput', { label: 'Password:', type: 'password', name: 'password' }); %>
     </div>
     <%- include('button', { color: 'blue', type: 'submit', text: 'Log in' }); %>
   </form>
