@@ -5,8 +5,8 @@ import { query } from "../database/adapter.js";
 import { FastifyRequest } from 'fastify';
 
 describe.only('authentication plugin', () => {
-  let userIds: Array<string> = [];
-  let sessionIds: Array<string> = [];
+  const userIds: string[] = [];
+  const sessionIds: string[] = [];
 
   afterAll(async function () {
     await query(`DELETE FROM sessions WHERE id IN (${sessionIds.map(sessionId => `'${sessionId}'`).join(', ')})`);
@@ -27,12 +27,12 @@ describe.only('authentication plugin', () => {
     const userId = (await query(
       'INSERT INTO users(firstname, lastname, username, "password") VALUES($1, $2, $3, $4) RETURNING id', 
       ['Burt', 'Goodman', 'BurtG', 'password hash']
-    )).rows[0].id;
+    )).rows[0].id as string;
     userIds.push(userId);
     const sessionId = (await query(
       'INSERT INTO sessions(user_id) VALUES($1) RETURNING id', 
       [userId]
-    )).rows[0].id;
+    )).rows[0].id as string;
     sessionIds.push(sessionId);
     const request = { cookies: { session: sessionId } } as unknown as FastifyRequest;
 
@@ -53,12 +53,12 @@ describe.only('authentication plugin', () => {
     const userId = (await query(
       'INSERT INTO users(firstname, lastname, username, "password") VALUES($1, $2, $3, $4) RETURNING id', 
       ['Dylan', 'George', 'DylanG', 'password hash']
-    )).rows[0].id;
+    )).rows[0].id as string;
     userIds.push(userId);
     const sessionId = (await query(
       'INSERT INTO sessions(user_id) VALUES($1) RETURNING id', 
       [userId]
-    )).rows[0].id;
+    )).rows[0].id as string;
     sessionIds.push(sessionId);
     const request = { cookies: { session: sessionId } } as unknown as FastifyRequest;
 

@@ -33,9 +33,9 @@ export async function getSignedInUser(request: FastifyRequest): Promise<User|nul
 
     const userRow = result.rows[0]
     return {
-      id: userRow.id,
-      username: userRow.username,
-      name: userRow.firstname,
-      surname: userRow.lastname,
+      id: userRow.id as string,
+      username: userRow.username as string,
+      name: userRow.firstname as string,
+      surname: userRow.lastname as string,
     };
 }

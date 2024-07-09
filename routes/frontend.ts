@@ -13,7 +13,7 @@ const User = Type.Object({
 
 type UserType = Static<typeof User>;
 
-export default async function frontend(fastify: FastifyInstance, opts) {
+export default async function frontend(fastify: FastifyInstance) {
   await fastify.register(StaticServer, {
     root: path.join(import.meta.dirname, '..', 'public'),
     prefix: '/'
@@ -68,13 +68,13 @@ export default async function frontend(fastify: FastifyInstance, opts) {
       return reply.redirect('/login?error=1')
     }
 
-    const passwordMatches = await argon2.verify(user.password, password)
+    const passwordMatches = await argon2.verify(user.password as string, password)
     if (!passwordMatches) {
       return reply.redirect('/login?error=1')
     }
 
-    const sessionId = (await query('INSERT INTO sessions(user_id) VALUES($1) RETURNING id', [user.id])).rows[0].id;
-    reply.setCookie('session', sessionId, {
+    const sessionId = (await query('INSERT INTO sessions(user_id) VALUES($1) RETURNING id', [user.id])).rows[0].id as string;
+    await reply.setCookie('session', sessionId, {
       httpOnly: true,
       // Expires after one week.
       maxAge: 604.800,

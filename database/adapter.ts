@@ -1,4 +1,4 @@
-import pg from "pg";
+import pg, { QueryResultRow } from "pg";
 
 const pool = new pg.Pool({
   host: process.env.POSTGRES_HOST,
@@ -8,15 +8,15 @@ const pool = new pg.Pool({
   password: process.env.POSTGRES_PASSWORD,
 });
 
-export function query(query: string, params?: any[]) {
-  return pool.query(query, params);
+export function query(query: string, params?: string[]) {
+  return pool.query<QueryResultRow, unknown[]>(query, params);
 }
 
 interface Client {
-  query: (query: string, params?: any[]) => Promise<pg.QueryResult<any>>,
+  query: (query: string, params?: string[]) => Promise<pg.QueryResult<never>>,
 }
 
-type TransactionQueryFunction = (client: Client) => Promise<pg.QueryResult<any>> | Promise<void>
+type TransactionQueryFunction = (client: Client) => Promise<pg.QueryResult<never>> | Promise<void>
 
 interface TransactionQueryOptions {
   destroyClient: boolean,
