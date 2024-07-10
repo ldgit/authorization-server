@@ -134,4 +134,16 @@ export default async function frontend(fastify: FastifyInstance) {
 			return reply.redirect("/");
 		},
 	);
+
+	fastify.get("/logout", async function (request, reply) {
+		if (!(await isUserSignedIn(request))) {
+			return reply.redirect("/");
+		}
+
+		const sessionId = request.cookies.session as string;
+		await query("DELETE FROM sessions WHERE id = $1", [sessionId]);
+		reply.clearCookie("session");
+
+		return reply.redirect("/");
+	});
 }
