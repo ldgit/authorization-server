@@ -11,6 +11,7 @@ import {
 	signInUser,
 	type SetCookieHandler,
 } from "../library/authentication.ts";
+import { validateNewUser } from "../library/validation.ts";
 
 const UserLogin = Type.Object({
 	username: Type.String(),
@@ -46,16 +47,37 @@ export default async function frontend(fastify: FastifyInstance) {
 	});
 
 	fastify.get("/register", async function (request, reply) {
+		let validationErrors = null;
+		if (request.cookies.newUserValidationErrors) {
+			const unsignedCookie = fastify.unsignCookie(request.cookies.newUserValidationErrors);
+			if (unsignedCookie.valid) {
+				validationErrors = JSON.parse(unsignedCookie.value as string);
+			}
+			reply.clearCookie("newUserValidationErrors");
+		}
+
 		if (await isUserSignedIn(request)) {
 			return reply.redirect("/");
 		}
 
-		return reply.view("registerPage.ejs");
+		return reply.view("registerPage.ejs", { validationErrors });
 	});
 
 	fastify.post<{ Body: UserRegisterType }>("/register", async function (request, reply) {
 		if (await isUserSignedIn(request)) {
 			return reply.redirect("/");
+		}
+
+		const user = request.body;
+
+		const errors = await validateNewUser(user);
+		if (errors !== null) {
+			reply.setCookie("newUserValidationErrors", JSON.stringify(errors), {
+				maxAge: 100,
+				httpOnly: true,
+				signed: true,
+			});
+			return reply.redirect("/register");
 		}
 
 		const userId = await createNewAccount(request.body);
@@ -97,13 +119,13 @@ export default async function frontend(fastify: FastifyInstance) {
 
 			const user = result.rows[0];
 
-			if (user.username !== username) {
-				return reply.redirect("/login?error=1");
-			}
-
 			const passwordMatches = await argon2.verify(user.password as string, password);
 
 			if (!passwordMatches) {
+				return reply.redirect("/login?error=1");
+			}
+
+			if (user.username !== username) {
 				return reply.redirect("/login?error=1");
 			}
 

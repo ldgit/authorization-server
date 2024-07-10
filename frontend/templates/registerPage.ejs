@@ -2,18 +2,30 @@
 
 <main class="container mx-auto min-w-fit flex flex-col items-center text-center justify-center">
   <form action="" method="post" class="flex flex-col items-start text-left size-max">
+    <% if (validationErrors?.name) { %>
+      <div class="mx-3 my-1 text-rose-500"><%= validationErrors.name %></div>
+    <% } %>
     <div class="m-2">
-      <%- include('textInput', { label: 'Name:', type: 'text', name: 'name' }); %>
+      <%- include('textInput', { label: 'Name:', type: 'text', name: 'name', value: validationErrors?.data.name }); %>
     </div>
+    <% if (validationErrors?.surname) { %>
+      <div class="mx-3 my-1 text-rose-500"><%= validationErrors.surname %></div>
+    <% } %>
     <div class="m-2">
-      <%- include('textInput', { label: 'Surname:', type: 'text', name: 'surname' }); %>
+      <%- include('textInput', { label: 'Surname:', type: 'text', name: 'surname', value: validationErrors?.data.surname }); %>
     </div>
+    <% if (validationErrors?.username) { %>
+      <div class="mx-3 my-1 text-rose-500"><%= validationErrors.username %></div>
+    <% } %>
     <div class="m-2">
-      <%- include('textInput', { label: 'Username:', type: 'text', name: 'username' }); %>
+      <%- include('textInput', { label: 'Username:', type: 'text', name: 'username', value: validationErrors?.data.username }); %>
     </div>
+    <% if (validationErrors?.password) { %>
+      <div class="mx-3 my-1 text-rose-500"><%= validationErrors.password %></div>
+    <% } %>
     <div class="m-2">
-      <%- include('textInput', { label: 'Password:', type: 'password', name: 'password' }); %>
+      <%- include('textInput', { label: 'Password:', type: 'password', name: 'password', value: validationErrors?.data.password }); %>
     </div>
-    <%- include('button', { color: 'blue', type: 'submit', text: 'Log in' }); %>
+    <%- include('button', { color: 'blue', type: 'submit', text: 'Create account' }); %>
   </form>
 </main>
