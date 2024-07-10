@@ -1,7 +1,7 @@
 import StaticServer from "@fastify/static";
 import path from "node:path";
 import { type Static, Type } from "@sinclair/typebox";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { query } from "../database/adapter.ts";
 import * as argon2 from "argon2";
 import {
@@ -64,12 +64,16 @@ export default async function frontend(fastify: FastifyInstance) {
 		return reply.redirect("/");
 	});
 
-	fastify.get("/login", async function (request, reply) {
+	type LoginGetRequest = FastifyRequest<{
+		Querystring: { error: 1 };
+	}>;
+
+	fastify.get("/login", async function (request: LoginGetRequest, reply) {
 		if (await isUserSignedIn(request)) {
 			return reply.redirect("/");
 		}
 
-		return reply.view("loginPage.ejs");
+		return reply.view("loginPage.ejs", { validationError: !!request.query.error });
 	});
 
 	/**
