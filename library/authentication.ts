@@ -3,6 +3,8 @@ import { query } from "../database/database.ts";
 import type { UserRegisterType } from "../routes/frontend.ts";
 import * as argon2 from "argon2";
 
+export const SESSION_COOKIE_NAME = "session";
+
 export async function isUserSignedIn(request: FastifyRequest): Promise<boolean> {
 	const user = await getSignedInUser(request);
 
@@ -68,7 +70,7 @@ export async function signInUser(
 	const result = await query("INSERT INTO sessions(user_id) VALUES($1) RETURNING id", [userId]);
 	const sessionId = result.rows[0].id;
 
-	setCookieHandler("session", sessionId, {
+	setCookieHandler(SESSION_COOKIE_NAME, sessionId, {
 		httpOnly: true,
 		// Expires after one week.
 		maxAge: 604800,
@@ -87,5 +89,5 @@ export type ClearCookie = (sessionName: string) => unknown;
 export async function signOut(request: FastifyRequest, clearCookieHandler: ClearCookie) {
 	const sessionId = request.cookies.session as string;
 	await query("DELETE FROM sessions WHERE id = $1", [sessionId]);
-	clearCookieHandler("session");
+	clearCookieHandler(SESSION_COOKIE_NAME);
 }

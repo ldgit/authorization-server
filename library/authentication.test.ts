@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	SESSION_COOKIE_NAME,
 	createNewAccount,
 	getSignedInUser,
 	isUserSignedIn,
@@ -140,7 +141,7 @@ describe("authentication", () => {
 		expect(userSessionResult.rowCount).toEqual(1);
 		expect(userSessionResult.rows[0].id).toEqual(sessionId);
 		expect(userSessionResult.rows[0].user_id).toEqual(userId);
-		expect(cookieHandlerArgs[0]).toEqual("session");
+		expect(cookieHandlerArgs[0]).toEqual(SESSION_COOKIE_NAME);
 		expect(cookieHandlerArgs[1]).toEqual(sessionId);
 		expect(cookieHandlerArgs[2]).toEqual({
 			httpOnly: true,
@@ -170,7 +171,7 @@ describe("authentication", () => {
 		expect(
 			await isUserSignedIn({ cookies: { session: sessionId } } as unknown as FastifyRequest),
 		).toStrictEqual(false);
-		expect(clearCookieHandler).toHaveBeenCalledWith("session");
+		expect(clearCookieHandler).toHaveBeenCalledWith(SESSION_COOKIE_NAME);
 	});
 
 	it("signOut should still clear cookie if no session in the database", async () => {
@@ -180,6 +181,6 @@ describe("authentication", () => {
 			{ cookies: { session: uuidv4() } } as unknown as FastifyRequest,
 			clearCookieHandler,
 		);
-			expect(clearCookieHandler).toHaveBeenCalledWith('session');
+		expect(clearCookieHandler).toHaveBeenCalledWith(SESSION_COOKIE_NAME);
 	});
 });
