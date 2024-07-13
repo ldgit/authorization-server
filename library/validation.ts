@@ -1,4 +1,4 @@
-import { query } from "../database/adapter.ts";
+import { query } from "../database/database.ts";
 import type { UserRegisterType } from "../routes/frontend.ts";
 
 export interface ValidationError {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { type ValidationError, validateNewUser } from "./validation.ts";
-import { query } from "../database/adapter.ts";
+import { query } from "../database/database.ts";
 import { createNewAccount } from "./authentication.ts";
 
 describe("validation", () => {

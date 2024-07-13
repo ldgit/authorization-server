@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { v4 as uuidv4 } from "uuid";
-import { transactionQuery, query } from "./adapter.ts";
+import { transactionQuery, query } from "./database.ts";
 import type { QueryResult } from "pg";
 
 const passwordHash =

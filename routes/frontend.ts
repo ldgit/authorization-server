@@ -2,7 +2,7 @@ import StaticServer from "@fastify/static";
 import path from "node:path";
 import { type Static, Type } from "@sinclair/typebox";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { query } from "../database/adapter.ts";
+import { query } from "../database/database.ts";
 import * as argon2 from "argon2";
 import {
 	getSignedInUser,
@@ -10,6 +10,7 @@ import {
 	createNewAccount,
 	signInUser,
 	type SetCookieHandler,
+	signOut,
 } from "../library/authentication.ts";
 import { validateNewUser } from "../library/validation.ts";
 
@@ -136,14 +137,7 @@ export default async function frontend(fastify: FastifyInstance) {
 	);
 
 	fastify.get("/logout", async function (request, reply) {
-		if (!(await isUserSignedIn(request))) {
-			return reply.redirect("/");
-		}
-
-		const sessionId = request.cookies.session as string;
-		await query("DELETE FROM sessions WHERE id = $1", [sessionId]);
-		reply.clearCookie("session");
-
+		await signOut(request, reply.clearCookie.bind(reply));
 		return reply.redirect("/");
 	});
 }

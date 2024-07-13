@@ -1,5 +1,5 @@
 import type { FastifyRequest } from "fastify";
-import { query } from "../database/adapter.js";
+import { query } from "../database/database.ts";
 import type { UserRegisterType } from "../routes/frontend.ts";
 import * as argon2 from "argon2";
 
@@ -77,4 +77,15 @@ export async function signInUser(
 	});
 
 	return sessionId;
+}
+
+export type ClearCookie = (sessionName: string) => unknown;
+
+/**
+ * Signs out currently signed in user (if they exist).
+ */
+export async function signOut(request: FastifyRequest, clearCookieHandler: ClearCookie) {
+	const sessionId = request.cookies.session as string;
+	await query("DELETE FROM sessions WHERE id = $1", [sessionId]);
+	clearCookieHandler("session");
 }

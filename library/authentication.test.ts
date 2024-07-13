@@ -1,7 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { createNewAccount, getSignedInUser, isUserSignedIn, signInUser } from "./authentication.ts";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	createNewAccount,
+	getSignedInUser,
+	isUserSignedIn,
+	signInUser,
+	signOut,
+} from "./authentication.ts";
 import { v4 as uuidv4 } from "uuid";
-import { query } from "../database/adapter.js";
+import { query } from "../database/database.ts";
 import type { FastifyRequest } from "fastify";
 import * as argon2 from "argon2";
 
@@ -142,5 +148,38 @@ describe("authentication", () => {
 			sameSite: "strict",
 			secure: "auto",
 		});
+	});
+
+	it("signOut should delete session provided in the session cookie from database and clear the session cookie", async () => {
+		const userId = await createNewAccount({
+			name: "Harmony",
+			surname: "Cobel",
+			password: "a test",
+			username: "hCobel",
+		});
+		userIds.push(userId);
+		const sessionId = await signInUser(userId, () => {});
+		expect(sessionId).not.toBeFalsy();
+		const clearCookieHandler = vi.fn();
+
+		await signOut(
+			{ cookies: { session: sessionId } } as unknown as FastifyRequest,
+			clearCookieHandler,
+		);
+
+		expect(
+			await isUserSignedIn({ cookies: { session: sessionId } } as unknown as FastifyRequest),
+		).toStrictEqual(false);
+		expect(clearCookieHandler).toHaveBeenCalledWith("session");
+	});
+
+	it("signOut should still clear cookie if no session in the database", async () => {
+		const clearCookieHandler = vi.fn();
+
+		await signOut(
+			{ cookies: { session: uuidv4() } } as unknown as FastifyRequest,
+			clearCookieHandler,
+		);
+			expect(clearCookieHandler).toHaveBeenCalledWith('session');
 	});
 });

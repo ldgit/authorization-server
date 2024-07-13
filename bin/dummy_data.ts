@@ -1,6 +1,6 @@
 import "dotenv/config";
 import * as argon2 from "argon2";
-import * as db from "../database/adapter.ts";
+import * as db from "../database/database.ts";
 
 async function createDummyData() {
 	const password = "test";
