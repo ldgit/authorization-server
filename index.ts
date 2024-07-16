@@ -1,13 +1,13 @@
 import "dotenv/config";
-import Fastify, { type FastifyInstance } from "fastify";
-import frontendRoutes from "./routes/frontend.ts";
-import pointOfView from "@fastify/view";
 import path from "node:path";
-import ejs from "ejs";
-import formbody from "@fastify/formbody";
-import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import fastifyCookie from "@fastify/cookie";
 import type { FastifyCookieOptions } from "@fastify/cookie";
+import formbody from "@fastify/formbody";
+import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
+import pointOfView from "@fastify/view";
+import ejs from "ejs";
+import Fastify, { type FastifyInstance } from "fastify";
+import frontendRoutes from "./routes/frontend.ts";
 
 const fastify: FastifyInstance = Fastify({
 	logger: true,

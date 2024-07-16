@@ -14,7 +14,8 @@
 		"styles": "tailwindcss -i ./frontend/styles/input.css -o ./public/build/style.css",
 		"styles-prod": "npm run styles -- --minify",
 		"test": "vitest",
-		"lint": "biome lint",
+		"e2e": "playwright test",
+		"lint": "biome check",
 		"prettier": "biome format --write"
 	},
 	"author": "Danko Lučić",

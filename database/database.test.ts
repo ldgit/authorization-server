@@ -1,7 +1,7 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import { v4 as uuidv4 } from "uuid";
-import { transactionQuery, query } from "./database.ts";
 import type { QueryResult } from "pg";
+import { v4 as uuidv4 } from "uuid";
+import { beforeAll, describe, expect, it } from "vitest";
+import { query, transactionQuery } from "./database.ts";
 
 const passwordHash =
 	"$argon2id$v=19$m=65536,t=3,p=4$P5wGfnyG6tNP2iwvWPp9SA$Gp3wgJZC1xe6fVzUTMmqgCGgFPyZeCt1aXjUtlwSMmo";

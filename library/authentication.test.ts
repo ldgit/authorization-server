@@ -1,4 +1,8 @@
+import * as argon2 from "argon2";
+import type { FastifyRequest } from "fastify";
+import { v4 as uuidv4 } from "uuid";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { query } from "../database/database.ts";
 import {
 	SESSION_COOKIE_NAME,
 	createNewAccount,
@@ -7,10 +11,6 @@ import {
 	signInUser,
 	signOut,
 } from "./authentication.ts";
-import { v4 as uuidv4 } from "uuid";
-import { query } from "../database/database.ts";
-import type { FastifyRequest } from "fastify";
-import * as argon2 from "argon2";
 
 const passwordHash =
 	"$argon2id$v=19$m=65536,t=3,p=4$P5wGfnyG6tNP2iwvWPp9SA$Gp3wgJZC1xe6fVzUTMmqgCGgFPyZeCt1aXjUtlwSMmo";

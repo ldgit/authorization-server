@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test("Login happy path", async ({ page }) => {
 	await page.goto("/");
@@ -75,7 +75,7 @@ test("Create new account validation errors", async ({ page, browserName }) => {
 	await page.getByRole("link", { name: "Create new account" }).click();
 	await page.waitForURL("/register");
 
-	await page.getByLabel(/Username/).fill(`MarkS`);
+	await page.getByLabel(/Username/).fill("MarkS");
 	await page.getByRole("button", { name: "Create account" }).click();
 
 	// Still on the same page.
