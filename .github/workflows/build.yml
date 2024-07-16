@@ -46,6 +46,9 @@ jobs:
 
       - name: Run integration tests
         run: npm t
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
       
       - name: Run end-to-end tests
         run: npm run e2e
