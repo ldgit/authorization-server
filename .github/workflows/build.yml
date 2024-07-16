@@ -34,6 +34,9 @@ jobs:
       - name: Setup env
         run: cp .env.example .env
 
+      - name: Run linter and style check
+        run: npm run lint
+
       - name: Run migrations and populate with dummy data
         run: npm run dev-db
 
