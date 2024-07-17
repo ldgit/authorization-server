@@ -1,5 +1,7 @@
 # Authorization Server
 
+[![build](https://github.com/ldgit/authorization-server/actions/workflows/build.yml/badge.svg)](https://github.com/ldgit/authorization-server/actions/workflows/build.yml)
+
 ### 🚧🚨 Unfinished WIP 🚨🚧
 
 OAuth 2.0 authorization server implementation. Follows specification defined in:
