@@ -36,7 +36,7 @@ jobs:
         run: npm ci
 
       - name: Setup env
-        run: cp .env.example .env
+        run: cp .dev.env .env
 
       - name: Run linter and style check
         run: npm run lint
