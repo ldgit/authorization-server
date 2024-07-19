@@ -1,5 +1,5 @@
 import * as argon2 from "argon2";
-import { query, transactionQuery } from "../database/database.ts";
+import { query, transactionQuery } from "../database/database.js";
 
 /**
  * Fills the database with dummy data.

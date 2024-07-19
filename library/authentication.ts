@@ -1,7 +1,7 @@
 import * as argon2 from "argon2";
 import type { FastifyRequest } from "fastify";
-import { query } from "../database/database.ts";
-import type { UserRegisterType } from "../routes/frontend.ts";
+import { query } from "../database/database.js";
+import type { UserRegisterType } from "../routes/frontend.js";
 
 export const SESSION_COOKIE_NAME = "session";
 

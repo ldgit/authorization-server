@@ -41,6 +41,9 @@ jobs:
       - name: Run linter and style check
         run: npm run lint
 
+      - name: Build for production
+        run: npm run build
+
       - name: Run migrations and populate with dummy data
         run: npm run dev-db
 

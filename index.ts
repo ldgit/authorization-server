@@ -7,7 +7,7 @@ import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import pointOfView from "@fastify/view";
 import ejs from "ejs";
 import Fastify, { type FastifyInstance } from "fastify";
-import frontendRoutes from "./routes/frontend.ts";
+import frontendRoutes from "./routes/frontend.js";
 
 const fastify: FastifyInstance = Fastify({
 	logger: true,

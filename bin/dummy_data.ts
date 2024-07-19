@@ -1,4 +1,4 @@
 import "dotenv/config";
-import { createDummyData } from "../database/createDummyData.ts";
+import { createDummyData } from "../database/createDummyData.js";
 
 createDummyData();

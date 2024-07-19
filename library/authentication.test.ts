@@ -2,7 +2,7 @@ import * as argon2 from "argon2";
 import type { FastifyRequest } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { query } from "../database/database.ts";
+import { query } from "../database/database.js";
 import {
 	SESSION_COOKIE_NAME,
 	createNewAccount,
@@ -10,7 +10,7 @@ import {
 	isUserSignedIn,
 	signInUser,
 	signOut,
-} from "./authentication.ts";
+} from "./authentication.js";
 
 const passwordHash =
 	"$argon2id$v=19$m=65536,t=3,p=4$P5wGfnyG6tNP2iwvWPp9SA$Gp3wgJZC1xe6fVzUTMmqgCGgFPyZeCt1aXjUtlwSMmo";
