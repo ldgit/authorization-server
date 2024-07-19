@@ -5,8 +5,7 @@
 		"lib": ["es2023"],
 		"esModuleInterop": true,
 		"module": "NodeNext",
-		"allowImportingTsExtensions": true,
-		"noEmit": true
-	},
-	"allowImportingTsExtensions": true
+		"target": "ESNext",
+		"moduleResolution": "NodeNext"
+	}
 }

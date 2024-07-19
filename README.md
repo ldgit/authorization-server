@@ -1,5 +1,7 @@
 # Authorization Server
 
+[![build](https://github.com/ldgit/authorization-server/actions/workflows/build.yml/badge.svg)](https://github.com/ldgit/authorization-server/actions/workflows/build.yml)
+
 ### 🚧🚨 Unfinished WIP 🚨🚧
 
 OAuth 2.0 authorization server implementation. Follows specification defined in:
@@ -9,7 +11,7 @@ OAuth 2.0 authorization server implementation. Follows specification defined in:
 ## Local Development
 
 Steps to run the app:
-1. Create the `.env` file from provided example: `cp .env.example .env`
+1. Create the `.env` file: `cp .dev.env .env`
 2. Start up the database docker container: `docker-compose up -d`
 3. Set up the dev database: `npm run dev-db`
 4. Start the local server: `npm run dev`

@@ -1,18 +1,18 @@
-import StaticServer from "@fastify/static";
 import path from "node:path";
+import StaticServer from "@fastify/static";
 import { type Static, Type } from "@sinclair/typebox";
-import type { FastifyInstance, FastifyRequest } from "fastify";
-import { query } from "../database/database.ts";
 import * as argon2 from "argon2";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import { query } from "../database/database.js";
 import {
+	type SetCookieHandler,
+	createNewAccount,
 	getSignedInUser,
 	isUserSignedIn,
-	createNewAccount,
 	signInUser,
-	type SetCookieHandler,
 	signOut,
-} from "../library/authentication.ts";
-import { validateNewUser } from "../library/validation.ts";
+} from "../library/authentication.js";
+import { validateNewUser } from "../library/validation.js";
 
 const UserLogin = Type.Object({
 	username: Type.String(),

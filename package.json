@@ -7,14 +7,16 @@
 	"scripts": {
 		"start": "node build/index.js",
 		"dev": "tsx watch index.ts",
-		"build": "tsc -p tsconfig.json && npm run styles-prod",
+		"be": "tsc -p tsconfig.json",
+		"build": "rm -rf ./build && tsc -p tsconfig.json && npm run styles-prod && cp -R ./public ./build/public && cp -R ./frontend ./build/frontend",
 		"migrations": "node bin/migrate.js",
 		"dummy-data": "tsx bin/dummy_data.ts",
 		"dev-db": "npm run migrations && npm run dummy-data",
 		"styles": "tailwindcss -i ./frontend/styles/input.css -o ./public/build/style.css",
 		"styles-prod": "npm run styles -- --minify",
 		"test": "vitest",
-		"lint": "biome lint",
+		"e2e": "playwright test",
+		"lint": "biome check",
 		"prettier": "biome format --write"
 	},
 	"author": "Danko Lučić",
@@ -35,6 +37,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.8.3",
+		"@playwright/test": "^1.45.1",
 		"@types/ejs": "^3.1.5",
 		"@types/node": "^20.11.24",
 		"@types/pg": "^8.11.2",
