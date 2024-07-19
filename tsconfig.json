@@ -5,7 +5,7 @@
 		"lib": ["es2023"],
 		"esModuleInterop": true,
 		"module": "NodeNext",
-    "target": "ESNext",
-    "moduleResolution": "NodeNext",
-	},
+		"target": "ESNext",
+		"moduleResolution": "NodeNext"
+	}
 }
