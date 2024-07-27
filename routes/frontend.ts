@@ -1,4 +1,5 @@
 import path from "node:path";
+import querystring from "node:querystring";
 import StaticServer from "@fastify/static";
 import { type Static, Type } from "@sinclair/typebox";
 import * as argon2 from "argon2";
@@ -13,6 +14,7 @@ import {
 	signOut,
 } from "../library/authentication.js";
 import { validateNewUser } from "../library/validation.js";
+import type { AuthorizationQueryParams } from "./api.js";
 
 const UserLogin = Type.Object({
 	username: Type.String(),
@@ -102,7 +104,7 @@ export default async function frontend(fastify: FastifyInstance) {
 	/**
 	 * Handles login page submit action.
 	 */
-	fastify.post<{ Body: UserLoginType }>(
+	fastify.post<{ Body: UserLoginType; Querystring: AuthorizationQueryParams }>(
 		"/login",
 		{ schema: { body: UserLogin } },
 		async function (request, reply) {
@@ -132,6 +134,11 @@ export default async function frontend(fastify: FastifyInstance) {
 
 			await signInUser(user.id, reply.setCookie.bind(reply) as SetCookieHandler);
 
+			// We check that query string parameters are valid at the /approve endpoint.
+			if (request.query.redirect_uri) {
+				return reply.redirect(`/approve?${querystring.stringify(request.query)}`);
+			}
+
 			return reply.redirect("/");
 		},
 	);
@@ -140,4 +147,18 @@ export default async function frontend(fastify: FastifyInstance) {
 		await signOut(request, reply.clearCookie.bind(reply));
 		return reply.redirect("/");
 	});
+
+	fastify.get<{ Querystring: AuthorizationQueryParams }>(
+		"/approve",
+		async function (request, reply) {
+			// TODO add checks in case of invalid query string data
+			// TODO confirm that redirect_uri matches
+			const clientName = (
+				await query("SELECT name FROM clients WHERE id = $1", [request.query.client_id])
+			).rows[0].name;
+			const redirectUri = request.query.redirect_uri;
+			// TODO check if user signed in
+			return reply.view("approvePage.ejs", { clientName, redirectUri });
+		},
+	);
 }

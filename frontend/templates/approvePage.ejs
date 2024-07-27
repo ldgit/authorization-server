@@ -1,0 +1,8 @@
+<%- include('header', { title: `An application wants to connect to your account` }); %>
+
+<main class="container mx-auto min-w-fit flex flex-col items-center text-center justify-center">
+  <h2 class="text-2xl">"<%= clientName %>" wants to access your user data</h2>
+  <a href="<%= redirectUri %>">
+    <%- include('button', { color: 'blue', type: 'button', text: 'Approve' }); %>
+  </a>
+</main>

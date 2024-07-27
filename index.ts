@@ -7,6 +7,7 @@ import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import pointOfView from "@fastify/view";
 import ejs from "ejs";
 import Fastify, { type FastifyInstance } from "fastify";
+import apiRoutes from "./routes/api.js";
 import frontendRoutes from "./routes/frontend.js";
 
 const fastify: FastifyInstance = Fastify({
@@ -29,6 +30,7 @@ fastify.register(pointOfView, {
 	layout: "layout.ejs",
 });
 fastify.register(frontendRoutes);
+fastify.register(apiRoutes);
 
 fastify.listen({ port: 3000 }, (err, address) => {
 	if (err) {
