@@ -1,10 +1,12 @@
-import querystring, { type ParsedUrlQueryInput } from "node:querystring";
+import type { ParsedUrlQueryInput } from "node:querystring";
 import type { FastifyInstance } from "fastify";
+import { type User, extractClientCredentials, getSignedInUser } from "../library/authentication.js";
 
-export interface AuthorizationQueryParams extends ParsedUrlQueryInput {
+export interface AccessTokenRequestQueryParams extends ParsedUrlQueryInput {
 	response_type: "code";
 	redirect_uri: string;
 	client_id: string;
+	client_secret: string;
 	scope: string;
 	state: string;
 	code_challenge: string;
@@ -12,8 +14,20 @@ export interface AuthorizationQueryParams extends ParsedUrlQueryInput {
 }
 
 export default async function frontend(fastify: FastifyInstance) {
-	fastify.get<{ Querystring: AuthorizationQueryParams }>("/authorize", function (request, reply) {
-		// TODO check that query params are valid
-		return reply.redirect(`/login?${querystring.stringify(request.query)}`);
+	fastify.post<{ Querystring: AccessTokenRequestQueryParams }>("/token", function (request, reply) {
+		// TODO validation
+
+		return reply.header("cache-control", "no-store").header("pragma", "no-cache").send({
+			access_token: "TODO GENERATE ME RANDOMLY",
+			token_type: "Bearer",
+			// 24 hours.
+			expires_in: 86400,
+			scope: "basic_info",
+		});
+	});
+
+	fastify.post("/resource/basic-info", async function (request, reply) {
+		const { username, name, surname } = (await getSignedInUser(request)) as User;
+		return reply.send({ username, name, surname });
 	});
 }

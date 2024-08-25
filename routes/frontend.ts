@@ -14,7 +14,7 @@ import {
 	signOut,
 } from "../library/authentication.js";
 import { validateNewUser } from "../library/validation.js";
-import type { AuthorizationQueryParams } from "./api.js";
+import type { AccessTokenRequestQueryParams } from "./api.js";
 
 const UserLogin = Type.Object({
 	username: Type.String(),
@@ -104,7 +104,7 @@ export default async function frontend(fastify: FastifyInstance) {
 	/**
 	 * Handles login page submit action.
 	 */
-	fastify.post<{ Body: UserLoginType; Querystring: AuthorizationQueryParams }>(
+	fastify.post<{ Body: UserLoginType; Querystring: AccessTokenRequestQueryParams }>(
 		"/login",
 		{ schema: { body: UserLogin } },
 		async function (request, reply) {
@@ -112,7 +112,6 @@ export default async function frontend(fastify: FastifyInstance) {
 			if (!username || !password) {
 				return reply.redirect("/login?error=1");
 			}
-
 			const result = await query("SELECT id, username, password FROM users WHERE username = $1", [
 				username,
 			]);
@@ -148,7 +147,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		return reply.redirect("/");
 	});
 
-	fastify.get<{ Querystring: AuthorizationQueryParams }>(
+	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
 		"/approve",
 		async function (request, reply) {
 			// TODO add checks in case of invalid query string data
@@ -159,6 +158,30 @@ export default async function frontend(fastify: FastifyInstance) {
 			const redirectUri = request.query.redirect_uri;
 			// TODO check if user signed in
 			return reply.view("approvePage.ejs", { clientName, redirectUri });
+		},
+	);
+
+	fastify.post<{ Querystring: AccessTokenRequestQueryParams }>(
+		"/approve",
+		function (request, reply) {
+			// TODO check if user signed in and return actual authorization code.
+
+			return reply.redirect(
+				`${request.query.redirect_uri}?code=traladdddddl&state=${request.query.state}`,
+			);
+		},
+	);
+
+	/**
+	 * Follows rfc6749 standard for authorization request handling and response.
+	 *
+	 * @see https://datatracker.ietf.org/doc/html/rfc6749.html#section-4.1.1
+	 */
+	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
+		"/authorize",
+		function (request, reply) {
+			// TODO check that query params are valid
+			return reply.redirect(`/login?${querystring.stringify(request.query)}`);
 		},
 	);
 }

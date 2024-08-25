@@ -1,6 +1,13 @@
 import * as argon2 from "argon2";
 import { query, transactionQuery } from "../database/database.js";
 
+/** Only for use in tests. */
+const DUMMY_CLIENT_ID = "23f0706a-f556-477f-a8cb-808bd045384f";
+/** Only for use in tests. */
+const DUMMY_CLIENT_NAME = "Lumon Industries";
+/** Only for use in tests. */
+const DUMMY_CLIENT_REDIRECT_URI = "http://lumon.example.com";
+
 /**
  * Fills the database with dummy data.
  *
@@ -8,7 +15,7 @@ import { query, transactionQuery } from "../database/database.js";
  */
 export async function createDummyData() {
 	const password = "test";
-	await query("TRUNCATE clients");
+	await query("TRUNCATE clients, authorization_tokens, access_tokens");
 	await query("TRUNCATE sessions, users");
 
 	console.log("Creating dummy data ");
@@ -31,19 +38,17 @@ export async function createDummyData() {
 			console.log("---");
 
 			console.log("Creating clients");
-			const clientId = "23f0706a-f556-477f-a8cb-808bd045384f";
-			const clientName = "Lumon Industries";
 			await client.query(
 				"INSERT INTO clients(id, name, redirect_uri, secret, description) VALUES($1, $2, $3, $4, $5) RETURNING id",
 				[
-					clientId,
-					clientName,
-					"https://lumon.example.com",
+					DUMMY_CLIENT_ID,
+					DUMMY_CLIENT_NAME,
+					DUMMY_CLIENT_REDIRECT_URI,
 					"secret_123",
 					"A dummy client used for testing and development purposes.",
 				],
 			);
-			console.log(`Created a test client ${clientName} (id: ${clientId})`);
+			console.log(`Created a test client ${DUMMY_CLIENT_NAME} (id: ${DUMMY_CLIENT_ID})`);
 		},
 		{ destroyClient: true },
 	);
