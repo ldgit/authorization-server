@@ -1,12 +1,11 @@
 import type { ParsedUrlQueryInput } from "node:querystring";
 import type { FastifyInstance } from "fastify";
-import { type User, extractClientCredentials, getSignedInUser } from "../library/authentication.js";
+import { type User, getSignedInUser } from "../library/authentication.js";
 
 export interface AccessTokenRequestQueryParams extends ParsedUrlQueryInput {
 	response_type: "code";
 	redirect_uri: string;
 	client_id: string;
-	client_secret: string;
 	scope: string;
 	state: string;
 	code_challenge: string;
@@ -15,7 +14,8 @@ export interface AccessTokenRequestQueryParams extends ParsedUrlQueryInput {
 
 export default async function frontend(fastify: FastifyInstance) {
 	fastify.post<{ Querystring: AccessTokenRequestQueryParams }>("/token", function (request, reply) {
-		// TODO validation
+		// TODO validation of request.body params
+		// TODO validation of extractClientCredentials(request.headers.authorization)
 
 		return reply.header("cache-control", "no-store").header("pragma", "no-cache").send({
 			access_token: "TODO GENERATE ME RANDOMLY",

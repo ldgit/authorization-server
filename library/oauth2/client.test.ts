@@ -1,0 +1,57 @@
+import { describe, expect, it } from "vitest";
+import { DUMMY_CLIENT_ID, DUMMY_CLIENT_REDIRECT_URI } from "../../database/createDummyData.js";
+import { extractClientCredentials, isRedirectUriValid } from "./client.js";
+
+describe("client authentication", () => {
+	const clientId = "e2062e6b-7af1-4c45-9b13-9ebfe9263fe6";
+	const clientSecret = "eqCwSoGkm2Uo0WgzjyKGJSrHHApYuljEv1ceEBeMoF8d";
+
+	it("extractClientCredentials should extract client credentials from an authorization request header", () => {
+		const clientCredentials = extractClientCredentials(
+			`Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+		);
+
+		expect(clientCredentials).toEqual({
+			clientId,
+			clientSecret,
+		});
+	});
+
+	for (const [description, authorizationHeader] of new Map([
+		[
+			"Bearer ${btoa(`${clientId}:${clientSecret}`)}",
+			`Bearer ${btoa(`${clientId}:${clientSecret}`)}`,
+		],
+		["Basic${btoa(`${clientId}:${clientSecret}`)}", `Basic${btoa(`${clientId}:${clientSecret}`)}`],
+		["Basic ${btoa(`${clientId}${clientSecret}`)}", `Basic ${btoa(`${clientId}${clientSecret}`)}`],
+		["Basic ${btoa(`:${clientSecret}`)}", `Basic ${btoa(`:${clientSecret}`)}`],
+		["${btoa(`${clientId}:${clientSecret}`)}`)}", `${btoa(`${clientId}:${clientSecret}`)}`],
+		["undefined", undefined],
+	])) {
+		it(`extractClientCredentials should return null if authorization header is invalid (${description})`, () => {
+			expect(extractClientCredentials(authorizationHeader)).toBeNull();
+		});
+	}
+
+	it("isRedirectUriValid should return true if redirect uri matches for the client", async () => {
+		expect(await isRedirectUriValid(DUMMY_CLIENT_ID, DUMMY_CLIENT_REDIRECT_URI)).toEqual(true);
+	});
+
+	it("isRedirectUriValid should return false if redirect uri does not match for the client", async () => {
+		expect(await isRedirectUriValid(DUMMY_CLIENT_ID, "https://someotheruri.example.com")).toEqual(
+			false,
+		);
+		expect(await isRedirectUriValid(DUMMY_CLIENT_ID, `${DUMMY_CLIENT_REDIRECT_URI}/other`)).toEqual(
+			false,
+		);
+		expect(
+			await isRedirectUriValid(DUMMY_CLIENT_ID, `${DUMMY_CLIENT_REDIRECT_URI}?query=param`),
+		).toEqual(false);
+	});
+
+	it("isRedirectUriValid should throw error if client does not exist in database", async () => {
+		await expect(async () => {
+			await isRedirectUriValid("0d15269c-a0f3-4e07-8432-a47faede1f53", DUMMY_CLIENT_REDIRECT_URI);
+		}).rejects.toThrowError("Client with id 0d15269c-a0f3-4e07-8432-a47faede1f53 not found.");
+	});
+});

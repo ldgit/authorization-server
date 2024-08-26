@@ -13,6 +13,7 @@ import {
 	signInUser,
 	signOut,
 } from "../library/authentication.js";
+import { isRedirectUriValid } from "../library/oauth2/client.js";
 import { validateNewUser } from "../library/validation.js";
 import type { AccessTokenRequestQueryParams } from "./api.js";
 
@@ -150,13 +151,13 @@ export default async function frontend(fastify: FastifyInstance) {
 	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
 		"/approve",
 		async function (request, reply) {
+			// TODO check if user signed in
 			// TODO add checks in case of invalid query string data
-			// TODO confirm that redirect_uri matches
+			// TODO confirm that redirect_uri matches (basically same checks as /authorize endpoint)
 			const clientName = (
 				await query("SELECT name FROM clients WHERE id = $1", [request.query.client_id])
 			).rows[0].name;
 			const redirectUri = request.query.redirect_uri;
-			// TODO check if user signed in
 			return reply.view("approvePage.ejs", { clientName, redirectUri });
 		},
 	);
@@ -179,9 +180,23 @@ export default async function frontend(fastify: FastifyInstance) {
 	 */
 	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
 		"/authorize",
-		function (request, reply) {
+		async function (request, reply) {
+			//TODO check that client exists first
+			if (
+				(await isRedirectUriValid(request.query.client_id, request.query.redirect_uri)) === false
+			) {
+				return reply.redirect(`/error/redirect-uri?${querystring.stringify(request.query)}`);
+			}
+
 			// TODO check that query params are valid
 			return reply.redirect(`/login?${querystring.stringify(request.query)}`);
+		},
+	);
+
+	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
+		"/error/redirect-uri",
+		function (request, reply) {
+			return reply.view("error/redirectUri.ejs");
 		},
 	);
 }

@@ -91,31 +91,3 @@ export async function signOut(request: FastifyRequest, clearCookieHandler: Clear
 	await query("DELETE FROM sessions WHERE id = $1", [sessionId]);
 	clearCookieHandler(SESSION_COOKIE_NAME);
 }
-
-/**
- * @param authorizationHeader Authorization request header that uses RFC2617 Basic Authentication Scheme.
- * @see https://datatracker.ietf.org/doc/html/rfc2617#section-2
- */
-export function extractClientCredentials(authorizationHeader: string | undefined): {
-	clientId: string;
-	clientSecret: string;
-} | null {
-	if (!authorizationHeader) {
-		return null;
-	}
-
-	const [authorizationType, base64EncodedCredentials] = authorizationHeader.split(" ");
-
-	if (authorizationType !== "Basic") {
-		return null;
-	}
-
-	const credentials = atob(base64EncodedCredentials);
-	const [clientId, clientSecret] = credentials.split(":");
-
-	if (!clientSecret || !clientId) {
-		return null;
-	}
-
-	return { clientId, clientSecret };
-}

@@ -2,11 +2,11 @@ import * as argon2 from "argon2";
 import { query, transactionQuery } from "../database/database.js";
 
 /** Only for use in tests. */
-const DUMMY_CLIENT_ID = "23f0706a-f556-477f-a8cb-808bd045384f";
+export const DUMMY_CLIENT_ID = "23f0706a-f556-477f-a8cb-808bd045384f";
 /** Only for use in tests. */
-const DUMMY_CLIENT_NAME = "Lumon Industries";
+export const DUMMY_CLIENT_NAME = "Lumon Industries";
 /** Only for use in tests. */
-const DUMMY_CLIENT_REDIRECT_URI = "http://lumon.example.com";
+export const DUMMY_CLIENT_REDIRECT_URI = "https://lumon.example.com";
 
 /**
  * Fills the database with dummy data.
@@ -15,10 +15,12 @@ const DUMMY_CLIENT_REDIRECT_URI = "http://lumon.example.com";
  */
 export async function createDummyData() {
 	const password = "test";
+
+	console.log("Deleting all existing data");
 	await query("TRUNCATE clients, authorization_tokens, access_tokens");
 	await query("TRUNCATE sessions, users");
 
-	console.log("Creating dummy data ");
+	console.log("Creating dummy data");
 
 	await transactionQuery(
 		async (client) => {
@@ -49,6 +51,7 @@ export async function createDummyData() {
 				],
 			);
 			console.log(`Created a test client ${DUMMY_CLIENT_NAME} (id: ${DUMMY_CLIENT_ID})`);
+			console.log(`Client redirect URI: ${DUMMY_CLIENT_REDIRECT_URI}`);
 		},
 		{ destroyClient: true },
 	);

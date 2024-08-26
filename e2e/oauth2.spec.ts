@@ -3,9 +3,8 @@ import { URL } from "node:url";
 import { expect, test } from "@playwright/test";
 import * as argon2 from "argon2";
 import cryptoRandomString from "crypto-random-string";
+import { v4 as uuidv4 } from "uuid";
 import { query } from "../database/database.js";
-
-let clientCounter = 1;
 
 async function createTestClient(baseURL: string) {
 	const secret = cryptoRandomString({ length: 44, type: "alphanumeric" });
@@ -19,7 +18,8 @@ async function createTestClient(baseURL: string) {
 	 * @see https://github.com/microsoft/playwright/pull/3994
 	 */
 	const redirectUri = `${baseURL}/`;
-	const name = `client_${clientCounter}`;
+	const name = `client_name_${uuidv4()}`;
+
 	const id = (
 		await query(
 			"INSERT INTO clients(name, description, secret, redirect_uri) VALUES($1, $2, $3, $4) RETURNING id",
@@ -27,29 +27,31 @@ async function createTestClient(baseURL: string) {
 		)
 	).rows[0].id as string;
 
-	clientCounter += 1;
-
 	return { id, secret, name, redirectUri };
 }
+
+function generateCodeVerifier() {
+	return cryptoRandomString({
+		length: 64,
+		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
+	});
+}
+
+// TODO remove this?
+test.setTimeout(4000);
 
 /**
  * We use PKCE flow.
  *
- * Based on instructions from https://www.oauth.com/playground/authorization-code-with-pkce.html.
+ * @see https://www.oauth.com/playground/authorization-code-with-pkce.html.
  */
-test("oauth2 flow happy path", async ({ page, browserName, baseURL, request }) => {
-	test.setTimeout(4000);
-	// TODO remove this
+test("oauth2 flow happy path", async ({ page, browserName, baseURL }) => {
+	// TODO remove this?
 	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
 
 	const { id, name, redirectUri, secret } = await createTestClient(baseURL as string);
-
-	// Generate code verifier:
-	const codeVerifier = cryptoRandomString({
-		length: 64,
-		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
-	});
-	// Generate code challenge
+	const codeVerifier = generateCodeVerifier();
+	// Create code challenge from code verifier.
 	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
 	// State can just be a random string for test purposes.
 	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
@@ -139,6 +141,38 @@ test("oauth2 flow happy path", async ({ page, browserName, baseURL, request }) =
 		surname: "Scout",
 	});
 });
+
+test("authorization endpoint should warn the resource owner (user) about the incorrect redirect_uri", async ({
+	page,
+	browserName,
+	baseURL,
+}) => {
+	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
+
+	const { id } = await createTestClient(baseURL as string);
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+
+	await page.goto(
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=https://www.google.com&scope=bang&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+
+	await page.waitForURL(
+		`/error/redirect-uri?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=bang&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+	await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
+	await expect(
+		page.getByRole("heading", { name: "The redirect_uri in the request is not allowed." }),
+	).toBeVisible();
+});
+
+/**
+ * TODO validation for authorization endpoint:
+ * + if redirect uri does not match for the client, display an error page and don't redirect to redirect_uri
+ * - if client parameter other than redirect uri is invalid, redirect back to client with just state param and error param where error is documented here https://datatracker.ietf.org/doc/html/rfc6749.html#section-4.1.2.1
+ * - when redirecting back to redirect_uri, ignore existing query parameters and just add your own
+ */
 
 /**
  * TODO validation for POST /token tests:
