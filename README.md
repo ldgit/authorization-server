@@ -10,13 +10,27 @@ OAuth 2.0 authorization server implementation. Follows specification defined in:
 
 ## Local Development
 
-Steps to run the app:
-1. Create the `.env` file: `cp .dev.env .env`
-2. Start up the database docker container: `docker-compose up -d`
-3. Set up the dev database: `npm run dev-db`
-4. Start the local server: `npm run dev`
-5. If working on css styles run `npm run styles -- --watch` separately.
-6. Access in browser on `http://127.0.0.1:3000/`
+### First time setup
+
+1. Create the `.env` file: `cp .dev.env .env`.
+2. Install npm packages: `npm ci`.
+3. `npx playwright install --with-deps` to install Playwright browsers for e2e testing.
+
+### Starting the server 
+
+1. Start up the database docker container: `docker-compose up -d`.
+2. Set up the dev database: `npm run dev-db`.
+3. Start the local server: `npm run dev`.
+4. If working on css styles run `npm run styles -- --watch` separately.
+5. Access in browser on `http://127.0.0.1:3000/`.
+
+### Testing
+
+To run unit and integration tests: `npm t`
+
+To run end to end tests:
+1. ***Optional*** `npm run dev` to start up the dev server. Playwright will do this automatically if the server is not running, but this is useful if you wish to see server errors in the console.
+2. `npm run e2e` to run the tests.
 
 ## Tech used
 
@@ -24,4 +38,6 @@ Steps to run the app:
 - PostgreSQL for database
 - ejs for templating
 - Tailwind for styles
+- Vitest for unit and integration testing
+- Playwright for e2e testing
 - biome.js for linting and enforcing code style
