@@ -7,7 +7,6 @@
 	"scripts": {
 		"start": "node build/index.js",
 		"dev": "tsx watch index.ts",
-		"be": "tsc -p tsconfig.json",
 		"build": "rm -rf ./build && tsc -p tsconfig.json && npm run styles-prod && cp -R ./public ./build/public && cp -R ./frontend ./build/frontend",
 		"migrations": "node bin/migrate.js",
 		"dummy-data": "tsx bin/dummy_data.ts",
