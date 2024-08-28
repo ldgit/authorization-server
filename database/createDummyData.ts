@@ -17,8 +17,7 @@ export async function createDummyData() {
 	const password = "test";
 
 	console.log("Deleting all existing data");
-	await query("TRUNCATE clients, authorization_tokens, access_tokens");
-	await query("TRUNCATE sessions, users");
+	await query("TRUNCATE clients, authorization_tokens, access_tokens, sessions, users");
 
 	console.log("Creating dummy data");
 
