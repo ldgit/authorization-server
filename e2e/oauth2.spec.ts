@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { URL } from "node:url";
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 import * as argon2 from "argon2";
 import cryptoRandomString from "crypto-random-string";
 import { v4 as uuidv4 } from "uuid";
@@ -82,64 +82,81 @@ test("oauth2 flow happy path", async ({ page, browserName, baseURL }) => {
 	await page.getByRole("button", { name: "Approve" }).click();
 
 	/**
-	 * Authorization server then redirects us to the redirect_uri.
+	 * Authorization server then redirects us to the client-provided redirect_uri.
 	 *
 	 * In this case it's the auth server homepage for ease of testing (we pretend that the auth server homepage is the client).
 	 */
 	await page.waitForURL(/\/\?/);
-	// We verify the data in the redirect_uri query string is there.
-	const expectedRedirectUri = new URL(page.url());
-	const authorizationCode = expectedRedirectUri.searchParams.get("code");
-	await expect(expectedRedirectUri.searchParams.get("state")).toEqual(state);
-	// Check that we received the authorization code token.
-	await expect(authorizationCode?.length).toBeGreaterThan(10);
+	const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(page.url(), state);
 
-	/**
-	 * Using the authorization code we received we request an access token from the authorization server.
-	 *
-	 * The client is authenticated by the auth server using Basic Authentication Scheme as described in RFC2617.
-	 * @see https://datatracker.ietf.org/doc/html/rfc2617#section-2
-	 */
-	const response = await page.request.post("/api/v1/token", {
-		headers: {
-			"Content-Type": "application/x-www-form-urlencoded",
-			Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
-		},
-		form: {
-			grant_type: "authorization_code",
-			redirect_uri: redirectUri,
-			code: authorizationCode as string,
-			code_verifier: codeVerifier,
-		},
+	const response = await requestAccessToken(page, {
+		clientId: id,
+		clientSecret: secret,
+		authorizationCode,
+		redirectUri,
+		codeVerifier,
 	});
 	expect(response.ok()).toBeTruthy();
 	const responseJson = await response.json();
-	/**
-	 * Verify that access token response follows rfc6749 specification.
-	 *
-	 * @see https://datatracker.ietf.org/doc/html/rfc6749.html#section-5.1
-	 */
-	expect(responseJson.access_token).not.toBeFalsy();
-	expect(responseJson.token_type).toEqual("Bearer");
-	expect(responseJson.expires_in).toEqual(86400);
-	expect(responseJson.scope).toEqual("basic_info");
-	const headers = await response.headers();
-	expect(headers["cache-control"]).toEqual("no-store");
-	expect(headers.pragma).toEqual("no-cache");
-	expect(headers["content-type"]).toEqual("application/json; charset=utf-8");
+	assertAccessTokenResponseFollowsSpecs(responseJson, await response.headers());
+
+	await assertFetchingBasicInfoWorks(page, responseJson.access_token);
+});
+
+test("oauth2 flow happy path when the user is already signed in", async ({
+	page,
+	browserName,
+	baseURL,
+}) => {
+	// TODO remove this
+	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
+
+	// Sign in the user first.
+	await page.goto("/login");
+	await page.getByLabel(/Username/).fill("MarkS");
+	await page.getByLabel(/Password/).fill("test");
+	await page.getByRole("button", { name: "Sign in" }).click();
+	await page.waitForURL("/");
+
+	const { id, name, redirectUri, secret } = await createTestClient(baseURL as string);
+	const codeVerifier = generateCodeVerifier();
+	// Create code challenge from code verifier.
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	// State can just be a random string for test purposes.
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
 
 	/**
-	 * Using the access token fetch basic user info from the resource server.
+	 * Start with request for an authorization token.
 	 */
-	const resourceResponse = await page.request.post("/api/v1/resource/basic-info", {
-		headers: { Authorization: `Bearer ${responseJson.access_token}` },
+	await page.goto(
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+
+	// Signed in user is immediately asked to approve the client.
+	await page.waitForURL(
+		`/approve?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+	await expect(
+		page.getByRole("heading", { name: `"${name}" wants to access your user data` }),
+	).toBeVisible();
+	// User approves the client.
+	await page.getByRole("button", { name: "Approve" }).click();
+
+	await page.waitForURL(/\/\?/);
+	const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(page.url(), state);
+
+	const response = await requestAccessToken(page, {
+		clientId: id,
+		clientSecret: secret,
+		authorizationCode,
+		redirectUri,
+		codeVerifier,
 	});
-	expect(resourceResponse.ok()).toBeTruthy();
-	expect(await resourceResponse.json()).toEqual({
-		username: "MarkS",
-		name: "Mark",
-		surname: "Scout",
-	});
+	expect(response.ok()).toBeTruthy();
+	const responseJson = await response.json();
+	assertAccessTokenResponseFollowsSpecs(responseJson, await response.headers());
+
+	await assertFetchingBasicInfoWorks(page, responseJson.access_token);
 });
 
 test("authorization endpoint should should warn resource owner (user) if client doesn't exists", async ({
@@ -188,9 +205,79 @@ test("authorization endpoint should warn resource owner (user) about the incorre
 	);
 	await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
 	await expect(
-		page.getByRole("heading", { name: "The redirect_uri query parameter is missing or not allowed." }),
+		page.getByRole("heading", {
+			name: "The redirect_uri query parameter is missing or not allowed.",
+		}),
 	).toBeVisible();
 });
+
+async function getAuthorizationCodeFromRedirectUriQueryString(
+	url: string,
+	expectedState: string,
+): Promise<string> {
+	// We verify the data in the redirect_uri query string is there.
+	const expectedRedirectUri = new URL(url);
+	const authorizationCode = expectedRedirectUri.searchParams.get("code");
+	await expect(expectedRedirectUri.searchParams.get("state")).toEqual(expectedState);
+	// Check that we received the authorization code token.
+	await expect(authorizationCode?.length).toBeGreaterThan(10);
+
+	return authorizationCode as string;
+}
+
+/**
+ * Using the authorization code we received we request an access token from the authorization server.
+ *
+ * The client is authenticated by the auth server using Basic Authentication Scheme as described in RFC2617.
+ * @see https://datatracker.ietf.org/doc/html/rfc2617#section-2
+ */
+async function requestAccessToken(
+	page: Page,
+	{ clientId, clientSecret, redirectUri, authorizationCode, codeVerifier }: any,
+) {
+	return await page.request.post("/api/v1/token", {
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+		},
+		form: {
+			grant_type: "authorization_code",
+			redirect_uri: redirectUri,
+			code: authorizationCode as string,
+			code_verifier: codeVerifier,
+		},
+	});
+}
+
+/**
+ * Verify that access token response follows rfc6749 specification.
+ *
+ * @see https://datatracker.ietf.org/doc/html/rfc6749.html#section-5.1
+ */
+function assertAccessTokenResponseFollowsSpecs(responseJson: any, headers: any) {
+	expect(responseJson.access_token).not.toBeFalsy();
+	expect(responseJson.token_type).toEqual("Bearer");
+	expect(responseJson.expires_in).toEqual(86400);
+	expect(responseJson.scope).toEqual("basic_info");
+	expect(headers["cache-control"]).toEqual("no-store");
+	expect(headers.pragma).toEqual("no-cache");
+	expect(headers["content-type"]).toEqual("application/json; charset=utf-8");
+}
+
+async function assertFetchingBasicInfoWorks(page: Page, accessToken: string) {
+	/**
+	 * Using the access token fetch basic user info from the resource server.
+	 */
+	const resourceResponse = await page.request.post("/api/v1/resource/basic-info", {
+		headers: { Authorization: `Bearer ${accessToken}` },
+	});
+	expect(resourceResponse.ok()).toBeTruthy();
+	expect(await resourceResponse.json()).toEqual({
+		username: "MarkS",
+		name: "Mark",
+		surname: "Scout",
+	});
+}
 
 /**
  * TODO validation for authorization endpoint:

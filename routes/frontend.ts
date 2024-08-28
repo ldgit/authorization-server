@@ -94,6 +94,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		Querystring: { error: 1 };
 	}>;
 
+	// TODO login preserve query string on validation error
 	fastify.get("/login", async function (request: LoginGetRequest, reply) {
 		if (await isUserSignedIn(request)) {
 			return reply.redirect("/");
@@ -134,7 +135,8 @@ export default async function frontend(fastify: FastifyInstance) {
 
 			await signInUser(user.id, reply.setCookie.bind(reply) as SetCookieHandler);
 
-			// We check that query string parameters are valid at the /approve endpoint.
+			// If there are Oauth2 parameters in the query string redirect the user to /approve endpoint.
+			// We check that query string parameters are valid there.
 			if (request.query.redirect_uri) {
 				return reply.redirect(`/approve?${querystring.stringify(request.query)}`);
 			}
@@ -189,6 +191,10 @@ export default async function frontend(fastify: FastifyInstance) {
 				(await isRedirectUriValid(request.query.client_id, request.query.redirect_uri)) === false
 			) {
 				return reply.redirect(`/error/redirect-uri?${querystring.stringify(request.query)}`);
+			}
+
+			if (await isUserSignedIn(request)) {
+				return reply.redirect(`/approve?${querystring.stringify(request.query)}`);
 			}
 
 			// TODO check that query params are valid
