@@ -13,7 +13,7 @@ import {
 	signInUser,
 	signOut,
 } from "../library/authentication.js";
-import { isRedirectUriValid } from "../library/oauth2/client.js";
+import { clientExists, isRedirectUriValid } from "../library/oauth2/client.js";
 import { validateNewUser } from "../library/validation.js";
 import type { AccessTokenRequestQueryParams } from "./api.js";
 
@@ -181,7 +181,10 @@ export default async function frontend(fastify: FastifyInstance) {
 	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
 		"/authorize",
 		async function (request, reply) {
-			//TODO check that client exists first
+			if (!(await clientExists(request.query.client_id))) {
+				return reply.redirect(`/error/client-id?${querystring.stringify(request.query)}`);
+			}
+
 			if (
 				(await isRedirectUriValid(request.query.client_id, request.query.redirect_uri)) === false
 			) {
@@ -193,10 +196,15 @@ export default async function frontend(fastify: FastifyInstance) {
 		},
 	);
 
-	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
-		"/error/redirect-uri",
+	fastify.get<{ Querystring: AccessTokenRequestQueryParams; Params: { errorType: string } }>(
+		"/error/:errorType",
 		function (request, reply) {
-			return reply.view("error/redirectUri.ejs");
+			const { errorType } = request.params;
+			if (errorType === "redirect-uri") {
+				return reply.view("errorPage.ejs", { errorType });
+			}
+
+			return reply.view("errorPage.ejs", { errorType, clientId: request.query.client_id });
 		},
 	);
 }

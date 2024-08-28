@@ -46,7 +46,7 @@ test.setTimeout(4000);
  * @see https://www.oauth.com/playground/authorization-code-with-pkce.html.
  */
 test("oauth2 flow happy path", async ({ page, browserName, baseURL }) => {
-	// TODO remove this?
+	// TODO remove this
 	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
 
 	const { id, name, redirectUri, secret } = await createTestClient(baseURL as string);
@@ -60,12 +60,12 @@ test("oauth2 flow happy path", async ({ page, browserName, baseURL }) => {
 	 * Start with request for an authorization token.
 	 */
 	await page.goto(
-		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=bang&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 
 	// User is taken to the login page to sign in first while preserving the query parameters.
 	await page.waitForURL(
-		`/login?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=bang&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/login?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 	await page.getByLabel(/Username/).fill("MarkS");
 	await page.getByLabel(/Password/).fill("test");
@@ -73,7 +73,7 @@ test("oauth2 flow happy path", async ({ page, browserName, baseURL }) => {
 
 	// Signed in user is asked to approve the client.
 	await page.waitForURL(
-		`/approve?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=bang&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/approve?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 	await expect(
 		page.getByRole("heading", { name: `"${name}" wants to access your user data` }),
@@ -142,11 +142,36 @@ test("oauth2 flow happy path", async ({ page, browserName, baseURL }) => {
 	});
 });
 
-test("authorization endpoint should warn the resource owner (user) about the incorrect redirect_uri", async ({
+test("authorization endpoint should should warn resource owner (user) if client doesn't exists", async ({
+	page,
+	browserName,
+}) => {
+	// TODO remove this
+	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+	const notAClientId = "0054478d-431c-4e21-bc48-ffb4c3eb2ac0";
+
+	await page.goto(
+		`/authorize?response_type=code&client_id=${notAClientId}&redirect_uri=https://www.google.com&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+
+	await page.waitForURL(
+		`/error/client-id?response_type=code&client_id=${notAClientId}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+	await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
+	await expect(
+		page.getByRole("heading", { name: `Client with "${notAClientId}" id does not exist.` }),
+	).toBeVisible();
+});
+
+test("authorization endpoint should warn resource owner (user) about the incorrect redirect_uri", async ({
 	page,
 	browserName,
 	baseURL,
 }) => {
+	// TODO remove this
 	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
 
 	const { id } = await createTestClient(baseURL as string);
@@ -155,11 +180,11 @@ test("authorization endpoint should warn the resource owner (user) about the inc
 	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
 
 	await page.goto(
-		`/authorize?response_type=code&client_id=${id}&redirect_uri=https://www.google.com&scope=bang&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=https://www.google.com&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 
 	await page.waitForURL(
-		`/error/redirect-uri?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=bang&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/error/redirect-uri?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 	await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
 	await expect(
@@ -169,7 +194,6 @@ test("authorization endpoint should warn the resource owner (user) about the inc
 
 /**
  * TODO validation for authorization endpoint:
- * + if redirect uri does not match for the client, display an error page and don't redirect to redirect_uri
  * - if client parameter other than redirect uri is invalid, redirect back to client with just state param and error param where error is documented here https://datatracker.ietf.org/doc/html/rfc6749.html#section-4.1.2.1
  * - when redirecting back to redirect_uri, ignore existing query parameters and just add your own
  */

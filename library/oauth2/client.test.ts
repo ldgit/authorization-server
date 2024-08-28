@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { DUMMY_CLIENT_ID, DUMMY_CLIENT_REDIRECT_URI } from "../../database/createDummyData.js";
-import { extractClientCredentials, isRedirectUriValid } from "./client.js";
+import { clientExists, extractClientCredentials, isRedirectUriValid } from "./client.js";
 
 describe("client authentication", () => {
-	const clientId = "e2062e6b-7af1-4c45-9b13-9ebfe9263fe6";
-	const clientSecret = "eqCwSoGkm2Uo0WgzjyKGJSrHHApYuljEv1ceEBeMoF8d";
+	it("clientExists should return false if provided client id is undefined or not in database", async () => {
+		expect(await clientExists(undefined)).toEqual(false);
+		expect(await clientExists("a17d060f-607a-47eb-9113-0f6402dcf089")).toEqual(false);
+		expect(await clientExists("")).toEqual(false);
+		expect(await clientExists("jdfhercndsjkvcns")).toEqual(false);
+	});
+
+	it("clientExists should return true if provided client id exists in database", async () => {
+		expect(await clientExists(DUMMY_CLIENT_ID)).toEqual(true);
+	});
 
 	it("extractClientCredentials should extract client credentials from an authorization request header", () => {
 		const clientCredentials = extractClientCredentials(
@@ -17,6 +25,8 @@ describe("client authentication", () => {
 		});
 	});
 
+	const clientId = "e2062e6b-7af1-4c45-9b13-9ebfe9263fe6";
+	const clientSecret = "eqCwSoGkm2Uo0WgzjyKGJSrHHApYuljEv1ceEBeMoF8d";
 	for (const [description, authorizationHeader] of new Map([
 		[
 			"Bearer ${btoa(`${clientId}:${clientSecret}`)}",

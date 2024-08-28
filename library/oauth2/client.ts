@@ -1,4 +1,15 @@
+import { validate as isValidUUID } from "uuid";
 import { query } from "../../database/database.js";
+
+export async function clientExists(clientId: string | undefined): Promise<boolean> {
+	if (!clientId || !isValidUUID(clientId)) {
+		return false;
+	}
+
+	const exists = await query("SELECT EXISTS(SELECT 1 FROM clients WHERE id = $1)", [clientId]);
+
+	return exists.rows[0].exists;
+}
 
 /**
  * @param authorizationHeader Authorization request header that uses RFC2617 Basic Authentication Scheme.
