@@ -11,7 +11,8 @@
 				"useArrowFunction": "off"
 			},
 			"suspicious": {
-				"useAwait": "error"
+				"useAwait": "error",
+				"noExplicitAny": "off"
 			}
 		}
 	},
