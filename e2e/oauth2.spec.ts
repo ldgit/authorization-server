@@ -188,7 +188,7 @@ test("authorization endpoint should warn resource owner (user) about the incorre
 	);
 	await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
 	await expect(
-		page.getByRole("heading", { name: "The redirect_uri in the request is not allowed." }),
+		page.getByRole("heading", { name: "The redirect_uri query parameter is missing or not allowed." }),
 	).toBeVisible();
 });
 
