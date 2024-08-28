@@ -45,10 +45,7 @@ test.setTimeout(4000);
  *
  * @see https://www.oauth.com/playground/authorization-code-with-pkce.html.
  */
-test("oauth2 flow happy path", async ({ page, browserName, baseURL }) => {
-	// TODO remove this
-	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
-
+test("oauth2 flow happy path", async ({ page, baseURL }) => {
 	const { id, name, redirectUri, secret } = await createTestClient(baseURL as string);
 	const codeVerifier = generateCodeVerifier();
 	// Create code challenge from code verifier.
@@ -103,14 +100,7 @@ test("oauth2 flow happy path", async ({ page, browserName, baseURL }) => {
 	await assertFetchingBasicInfoWorks(page, responseJson.access_token);
 });
 
-test("oauth2 flow happy path when the user is already signed in", async ({
-	page,
-	browserName,
-	baseURL,
-}) => {
-	// TODO remove this
-	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
-
+test("oauth2 flow happy path when the user is already signed in", async ({ page, baseURL }) => {
 	// Sign in the user first.
 	await page.goto("/login");
 	await page.getByLabel(/Username/).fill("MarkS");
@@ -159,38 +149,32 @@ test("oauth2 flow happy path when the user is already signed in", async ({
 	await assertFetchingBasicInfoWorks(page, responseJson.access_token);
 });
 
-test("authorization endpoint should should warn resource owner (user) if client doesn't exists", async ({
-	page,
-	browserName,
-}) => {
-	// TODO remove this
-	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
-	const codeVerifier = generateCodeVerifier();
-	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
-	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
-	const notAClientId = "0054478d-431c-4e21-bc48-ffb4c3eb2ac0";
+["", "0054478d-431c-4e21-bc48-ffb4c3eb2ac0"].forEach((notAClientId) => {
+	test(`authorization endpoint should should warn resource owner (user) if client doesn't exists (${notAClientId})`, async ({
+		page,
+	}) => {
+		const codeVerifier = generateCodeVerifier();
+		const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+		const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
 
-	await page.goto(
-		`/authorize?response_type=code&client_id=${notAClientId}&redirect_uri=https://www.google.com&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
-	);
+		await page.goto(
+			`/authorize?response_type=code&client_id=${notAClientId}&redirect_uri=https://www.google.com&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		);
 
-	await page.waitForURL(
-		`/error/client-id?response_type=code&client_id=${notAClientId}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
-	);
-	await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
-	await expect(
-		page.getByRole("heading", { name: `Client with "${notAClientId}" id does not exist.` }),
-	).toBeVisible();
+		await page.waitForURL(
+			`/error/client-id?response_type=code&client_id=${notAClientId}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		);
+		await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
+		await expect(
+			page.getByRole("heading", { name: `Client with "${notAClientId}" id does not exist.` }),
+		).toBeVisible();
+	});
 });
 
 test("authorization endpoint should warn resource owner (user) about the incorrect redirect_uri", async ({
 	page,
-	browserName,
 	baseURL,
 }) => {
-	// TODO remove this
-	test.skip(browserName.toLowerCase() !== "firefox", "Test only on Firefox!");
-
 	const { id } = await createTestClient(baseURL as string);
 	const codeVerifier = generateCodeVerifier();
 	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
