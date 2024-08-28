@@ -110,27 +110,24 @@ export default async function frontend(fastify: FastifyInstance) {
 		"/login",
 		{ schema: { body: UserLogin } },
 		async function (request, reply) {
+			const loginErrorRouteWithQueryParameters = `/login?error=1&${querystring.stringify(request.query)}`;
 			const { username, password } = request.body;
 			if (!username || !password) {
-				return reply.redirect("/login?error=1");
+				return reply.redirect(loginErrorRouteWithQueryParameters);
 			}
+
 			const result = await query("SELECT id, username, password FROM users WHERE username = $1", [
 				username,
 			]);
 			if (result.rowCount !== 1) {
-				return reply.redirect("/login?error=1");
+				return reply.redirect(loginErrorRouteWithQueryParameters);
 			}
 
 			const user = result.rows[0];
-
 			const passwordMatches = await argon2.verify(user.password as string, password);
 
 			if (!passwordMatches) {
-				return reply.redirect("/login?error=1");
-			}
-
-			if (user.username !== username) {
-				return reply.redirect("/login?error=1");
+				return reply.redirect(loginErrorRouteWithQueryParameters);
 			}
 
 			await signInUser(user.id, reply.setCookie.bind(reply) as SetCookieHandler);
