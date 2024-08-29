@@ -228,6 +228,16 @@ export default async function frontend(fastify: FastifyInstance) {
 				return reply.redirect(newRedirectUri);
 			}
 
+			if (request.query.code_challenge_method !== "S256") {
+				const newRedirectUri = attachErrorInformationToRedirectUri(
+					request.query.redirect_uri,
+					request.query.state,
+					"invalid_request",
+				);
+
+				return reply.redirect(newRedirectUri);
+			}
+
 			if (!(await isUserSignedIn(request))) {
 				return reply.redirect(`/login?${querystring.stringify(request.query)}`);
 			}
