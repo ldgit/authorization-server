@@ -30,13 +30,6 @@ async function createTestClient(baseURL: string) {
 	return { id, secret, name, redirectUri };
 }
 
-function generateCodeVerifier() {
-	return cryptoRandomString({
-		length: 64,
-		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
-	});
-}
-
 // TODO remove this?
 test.setTimeout(4000);
 
@@ -169,6 +162,20 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 			page.getByRole("heading", { name: `Client with "${notAClientId}" id does not exist.` }),
 		).toBeVisible();
 	});
+
+	test(`authorization endpoint should should warn resource owner (user) if client doesn't exists (${notAClientId}) even if other parameters are missing`, async ({
+		page,
+	}) => {
+		await page.goto(`/authorize?client_id=${notAClientId}&redirect_uri=https://www.google.com`);
+
+		await page.waitForURL(
+			`/error/client-id?client_id=${notAClientId}&redirect_uri=${encodeURIComponent("https://www.google.com")}`,
+		);
+		await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
+		await expect(
+			page.getByRole("heading", { name: `Client with "${notAClientId}" id does not exist.` }),
+		).toBeVisible();
+	});
 });
 
 test("authorization endpoint should warn resource owner (user) about the incorrect redirect_uri", async ({
@@ -194,6 +201,91 @@ test("authorization endpoint should warn resource owner (user) about the incorre
 		}),
 	).toBeVisible();
 });
+
+test("authorization endpoint should warn resource owner (user) about the incorrect redirect_uri even if every other query param is missing", async ({
+	page,
+	baseURL,
+}) => {
+	const { id } = await createTestClient(baseURL as string);
+
+	await page.goto(`/authorize?client_id=${id}&redirect_uri=https://www.google.com`);
+
+	await page.waitForURL(
+		`/error/redirect-uri?client_id=${id}&redirect_uri=${encodeURIComponent("https://www.google.com")}`,
+	);
+	await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
+	await expect(
+		page.getByRole("heading", {
+			name: "The redirect_uri query parameter is missing or not allowed.",
+		}),
+	).toBeVisible();
+});
+
+const validPKCEChallenge = "B3b_JHueqI6LBp_WhuR7NfViLSgGVeXBpfpEMjoSdok";
+[
+	{
+		description: "unsupported response_type",
+		invalidQueryString: `response_type=token&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		expectedError: "unsupported_response_type",
+	},
+	{
+		description: "invalid response_type",
+		invalidQueryString: `response_type=qwerty&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		expectedError: "invalid_request",
+	},
+	{
+		description: "missing response_type",
+		invalidQueryString: `scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		expectedError: "invalid_request",
+	},
+	{
+		description: "duplicate response_type",
+		invalidQueryString: `response_type=code&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&response_type=code`,
+		expectedError: "invalid_request",
+	},
+].forEach(({ description, invalidQueryString, expectedError }) => {
+	test(`/authorize endpoint should redirect back with ${expectedError} error in case of ${description} (${invalidQueryString})`, async ({
+		page,
+		baseURL,
+	}) => {
+		const { id, redirectUri } = await createTestClient(baseURL as string);
+
+		await page.goto(`/authorize?client_id=${id}&redirect_uri=${redirectUri}&${invalidQueryString}`);
+
+		await page.waitForURL(/\/\?/);
+
+		const expectedRedirectUri = new URL(page.url());
+		expect(expectedRedirectUri.searchParams.get("error")).toEqual(expectedError);
+		expect(expectedRedirectUri.searchParams.get("code")).toBeNull();
+		await expect(expectedRedirectUri.searchParams.get("state")).toEqual("validState");
+	});
+});
+
+// test("/approve endpoint should redirect with access_denied error code if user denies the authorization request", () => {});
+
+/**
+ * TODO validation for authorization endpoint:
+ * - if client parameter other than redirect uri is invalid, redirect back to client with just state param and error param where error is documented here https://datatracker.ietf.org/doc/html/rfc6749.html#section-4.1.2.1
+ * - when redirecting back to redirect_uri, ignore existing query parameters and just add your own
+ */
+
+/**
+ * TODO validation for POST /token tests:
+ * - one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
+ * - one of the parameters unsupported: respond with 400 http status code, `error: invalid_request`
+ * - one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
+ * - redirect uri does not match: respond with 400 http status code, `error: invalid_grant`
+ * - authorization code is invalid or expired: respond with 400 http status code, `error: invalid_grant`
+ * - unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
+ * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
+ */
+
+function generateCodeVerifier() {
+	return cryptoRandomString({
+		length: 64,
+		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
+	});
+}
 
 async function getAuthorizationCodeFromRedirectUriQueryString(
 	url: string,
@@ -256,26 +348,9 @@ async function assertFetchingBasicInfoWorks(page: Page, accessToken: string) {
 		headers: { Authorization: `Bearer ${accessToken}` },
 	});
 	expect(resourceResponse.ok()).toBeTruthy();
-	expect(await resourceResponse.json()).toEqual({
+	await expect(await resourceResponse.json()).toEqual({
 		username: "MarkS",
 		name: "Mark",
 		surname: "Scout",
 	});
 }
-
-/**
- * TODO validation for authorization endpoint:
- * - if client parameter other than redirect uri is invalid, redirect back to client with just state param and error param where error is documented here https://datatracker.ietf.org/doc/html/rfc6749.html#section-4.1.2.1
- * - when redirecting back to redirect_uri, ignore existing query parameters and just add your own
- */
-
-/**
- * TODO validation for POST /token tests:
- * - one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
- * - one of the parameters unsupported: respond with 400 http status code, `error: invalid_request`
- * - one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
- * - redirect uri does not match: respond with 400 http status code, `error: invalid_grant`
- * - authorization code is invalid or expired: respond with 400 http status code, `error: invalid_grant`
- * - unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
- * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
- */

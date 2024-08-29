@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DUMMY_CLIENT_ID, DUMMY_CLIENT_REDIRECT_URI } from "../../database/createDummyData.js";
-import { clientExists, extractClientCredentials, isRedirectUriValid } from "./client.js";
+import type { AuthorizationResponseErrorType } from "../../routes/frontend.js";
+import {
+	attachErrorInformationToRedirectUri,
+	clientExists,
+	extractClientCredentials,
+	isRedirectUriValid,
+} from "./client.js";
 
 describe("client authentication", () => {
 	it("clientExists should return false if provided client id is undefined or not in database", async () => {
@@ -63,5 +69,45 @@ describe("client authentication", () => {
 		await expect(async () => {
 			await isRedirectUriValid("0d15269c-a0f3-4e07-8432-a47faede1f53", DUMMY_CLIENT_REDIRECT_URI);
 		}).rejects.toThrowError("Client with id 0d15269c-a0f3-4e07-8432-a47faede1f53 not found.");
+	});
+});
+
+describe("attachErrorInformationToRedirectUri", () => {
+	[
+		{
+			redirectUri: "https://redirecturi.example.com",
+			state: "",
+			errorType: "access_denied",
+			expectedRedirectUri: "https://redirecturi.example.com/?error=access_denied",
+		},
+		{
+			redirectUri: "https://redirecturi.example.com",
+			state: "someState",
+			errorType: "invalid_request",
+			expectedRedirectUri: "https://redirecturi.example.com/?state=someState&error=invalid_request",
+		},
+		{
+			redirectUri: "https://redirecturi.example.com?existing_query=very_yes",
+			state: "otherState",
+			errorType: "invalid_scope",
+			expectedRedirectUri:
+				"https://redirecturi.example.com/?existing_query=very_yes&state=otherState&error=invalid_scope",
+		},
+		{
+			redirectUri: "https://redirecturi.example.com?existing_query=very_yes",
+			state: "",
+			errorType: "server_error",
+			expectedRedirectUri:
+				"https://redirecturi.example.com/?existing_query=very_yes&error=server_error",
+		},
+	].forEach(({ redirectUri, state, errorType, expectedRedirectUri }) => {
+		it(`should attach "${errorType}" error type to a redirect uri ${redirectUri} (with state "${state}")`, () => {
+			const actualRedirectUri = attachErrorInformationToRedirectUri(
+				redirectUri,
+				state,
+				errorType as AuthorizationResponseErrorType,
+			);
+			expect(actualRedirectUri).toEqual(expectedRedirectUri);
+		});
 	});
 });

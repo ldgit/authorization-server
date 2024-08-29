@@ -1,5 +1,6 @@
 import path from "node:path";
 import querystring from "node:querystring";
+import type { ParsedUrlQueryInput } from "node:querystring";
 import StaticServer from "@fastify/static";
 import { type Static, Type } from "@sinclair/typebox";
 import * as argon2 from "argon2";
@@ -13,9 +14,36 @@ import {
 	signInUser,
 	signOut,
 } from "../library/authentication.js";
-import { clientExists, isRedirectUriValid } from "../library/oauth2/client.js";
+import {
+	attachErrorInformationToRedirectUri,
+	clientExists,
+	isRedirectUriValid,
+} from "../library/oauth2/client.js";
 import { validateNewUser } from "../library/validation.js";
-import type { AccessTokenRequestQueryParams } from "./api.js";
+
+export interface AuthorizationRequestQueryParams extends ParsedUrlQueryInput {
+	response_type: "code";
+	redirect_uri: string;
+	client_id: string;
+	scope: string;
+	state: string;
+	code_challenge: string;
+	code_challenge_method: "S256";
+}
+
+/**
+ * Specifies possible `error` parameter values for /authorize response, per RFC 6749.
+ *
+ * @see https://datatracker.ietf.org/doc/html/rfc6749.html#section-4.1.2.1
+ */
+export type AuthorizationResponseErrorType =
+	| "invalid_request"
+	| "unauthorized_client"
+	| "access_denied"
+	| "unsupported_response_type"
+	| "invalid_scope"
+	| "server_error"
+	| "temporarily_unavailable";
 
 const UserLogin = Type.Object({
 	username: Type.String(),
@@ -94,7 +122,6 @@ export default async function frontend(fastify: FastifyInstance) {
 		Querystring: { error: 1 };
 	}>;
 
-	// TODO login preserve query string on validation error
 	fastify.get("/login", async function (request: LoginGetRequest, reply) {
 		if (await isUserSignedIn(request)) {
 			return reply.redirect("/");
@@ -106,10 +133,11 @@ export default async function frontend(fastify: FastifyInstance) {
 	/**
 	 * Handles login page submit action.
 	 */
-	fastify.post<{ Body: UserLoginType; Querystring: AccessTokenRequestQueryParams }>(
+	fastify.post<{ Body: UserLoginType; Querystring: AuthorizationRequestQueryParams }>(
 		"/login",
 		{ schema: { body: UserLogin } },
 		async function (request, reply) {
+			// In case of an validation error we want to preserve existing query string parameters
 			const loginErrorRouteWithQueryParameters = `/login?error=1&${querystring.stringify(request.query)}`;
 			const { username, password } = request.body;
 			if (!username || !password) {
@@ -135,6 +163,8 @@ export default async function frontend(fastify: FastifyInstance) {
 			// If there are Oauth2 parameters in the query string redirect the user to /approve endpoint.
 			// We check that query string parameters are valid there.
 			if (request.query.redirect_uri) {
+				// TODO do not send error param
+				// const { error, ...oauth2Params } = request.query;
 				return reply.redirect(`/approve?${querystring.stringify(request.query)}`);
 			}
 
@@ -147,12 +177,13 @@ export default async function frontend(fastify: FastifyInstance) {
 		return reply.redirect("/");
 	});
 
-	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
+	fastify.get<{ Querystring: AuthorizationRequestQueryParams }>(
 		"/approve",
 		async function (request, reply) {
 			// TODO check if user signed in
 			// TODO add checks in case of invalid query string data
-			// TODO confirm that redirect_uri matches (basically same checks as /authorize endpoint)
+			// TODO confirm that redirect_uri matches
+			// (basically same checks as /authorize endpoint)
 			const clientName = (
 				await query("SELECT name FROM clients WHERE id = $1", [request.query.client_id])
 			).rows[0].name;
@@ -161,7 +192,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		},
 	);
 
-	fastify.post<{ Querystring: AccessTokenRequestQueryParams }>(
+	fastify.post<{ Querystring: AuthorizationRequestQueryParams }>(
 		"/approve",
 		function (request, reply) {
 			// TODO check if user signed in and return actual authorization code.
@@ -177,7 +208,7 @@ export default async function frontend(fastify: FastifyInstance) {
 	 *
 	 * @see https://datatracker.ietf.org/doc/html/rfc6749.html#section-4.1.1
 	 */
-	fastify.get<{ Querystring: AccessTokenRequestQueryParams }>(
+	fastify.get<{ Querystring: AuthorizationRequestQueryParams }>(
 		"/authorize",
 		async function (request, reply) {
 			if (!(await clientExists(request.query.client_id))) {
@@ -190,6 +221,16 @@ export default async function frontend(fastify: FastifyInstance) {
 				return reply.redirect(`/error/redirect-uri?${querystring.stringify(request.query)}`);
 			}
 
+			if (request.query.response_type !== "code") {
+				const newRedirectUri = attachErrorInformationToRedirectUri(
+					request.query.redirect_uri,
+					request.query.state,
+					request.query.response_type === "token" ? "unsupported_response_type" : "invalid_request",
+				);
+
+				return reply.redirect(newRedirectUri);
+			}
+
 			if (await isUserSignedIn(request)) {
 				return reply.redirect(`/approve?${querystring.stringify(request.query)}`);
 			}
@@ -199,7 +240,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		},
 	);
 
-	fastify.get<{ Querystring: AccessTokenRequestQueryParams; Params: { errorType: string } }>(
+	fastify.get<{ Querystring: AuthorizationRequestQueryParams; Params: { errorType: string } }>(
 		"/error/:errorType",
 		function (request, reply) {
 			const { errorType } = request.params;

@@ -1,5 +1,6 @@
 import { validate as isValidUUID } from "uuid";
 import { query } from "../../database/database.js";
+import type { AuthorizationResponseErrorType } from "../../routes/frontend.js";
 
 export async function clientExists(clientId: string | undefined): Promise<boolean> {
 	if (!clientId || !isValidUUID(clientId)) {
@@ -51,4 +52,28 @@ export async function isRedirectUriValid(clientId: string, redirectUri: string):
 	}
 
 	return true;
+}
+
+/**
+ * Attaches `error` parameter to `redirect_uri` query string with relevant `errorType`.
+ *
+ * If a `state` parameter is provided it is attached as well.
+ * All original query parameters in the `redirect_uri` are preserved.
+ *
+ * @returns `redirect_uri` with error data added to query string
+ */
+export function attachErrorInformationToRedirectUri(
+	redirectUri: string,
+	state: string,
+	errorType: AuthorizationResponseErrorType,
+): string {
+	const redirectUrl = new URL(redirectUri);
+	const searchParams = redirectUrl.searchParams;
+
+	if (state) {
+		searchParams.append("state", state);
+	}
+	searchParams.append("error", errorType);
+
+	return redirectUrl.toString();
 }

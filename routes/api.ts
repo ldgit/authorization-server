@@ -3,13 +3,10 @@ import type { FastifyInstance } from "fastify";
 import { type User, getSignedInUser } from "../library/authentication.js";
 
 export interface AccessTokenRequestQueryParams extends ParsedUrlQueryInput {
-	response_type: "code";
+	grant_type: "authorization_code";
+	code: string;
 	redirect_uri: string;
-	client_id: string;
-	scope: string;
-	state: string;
-	code_challenge: string;
-	code_challenge_method: "S256";
+	code_verifier: string;
 }
 
 export default async function frontend(fastify: FastifyInstance) {
