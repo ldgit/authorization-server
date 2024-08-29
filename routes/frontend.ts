@@ -206,6 +206,16 @@ export default async function frontend(fastify: FastifyInstance) {
 				return reply.redirect(newRedirectUri);
 			}
 
+			if(request.query.scope !== "basic-info") {
+				const newRedirectUri = attachErrorInformationToRedirectUri(
+					request.query.redirect_uri,
+					request.query.state,
+					!request.query.scope || typeof request.query.scope === 'object' ? "invalid_request" : "invalid_scope",
+				);
+
+				return reply.redirect(newRedirectUri);
+			}
+
 			if (!(await isUserSignedIn(request))) {
 				return reply.redirect(`/login?${querystring.stringify(request.query)}`);
 			}

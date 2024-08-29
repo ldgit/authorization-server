@@ -240,6 +240,21 @@ const validPKCEChallenge = "B3b_JHueqI6LBp_WhuR7NfViLSgGVeXBpfpEMjoSdok";
 		invalidQueryString: `response_type=code&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&response_type=code`,
 		expectedError: "invalid_request",
 	},
+	{
+		description: "invalid scope",
+		invalidQueryString: `response_type=code&scope=full-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		expectedError: "invalid_scope",
+	},
+	{
+		description: "missing scope",
+		invalidQueryString: `response_type=code&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		expectedError: "invalid_request",
+	},
+	{
+		description: "duplicate scope",
+		invalidQueryString: `response_type=code&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&scope=basic-info`,
+		expectedError: "invalid_request",
+	},
 ].forEach(({ description, invalidQueryString, expectedError }) => {
 	test(`/authorize endpoint should redirect back with ${expectedError} error in case of ${description} (${invalidQueryString})`, async ({
 		page,
