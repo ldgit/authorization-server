@@ -160,12 +160,13 @@ export default async function frontend(fastify: FastifyInstance) {
 
 			await signInUser(user.id, reply.setCookie.bind(reply) as SetCookieHandler);
 
-			// If there are Oauth2 parameters in the query string redirect the user to /approve endpoint.
+			// If there are Oauth2 parameters in the query string redirect user back to /authorize endpoint
+			// to approve/deny the request.
 			// We check that query string parameters are valid there.
 			if (request.query.redirect_uri) {
 				// TODO do not send error param
 				// const { error, ...oauth2Params } = request.query;
-				return reply.redirect(`/approve?${querystring.stringify(request.query)}`);
+				return reply.redirect(`/authorize?${querystring.stringify(request.query)}`);
 			}
 
 			return reply.redirect("/");
@@ -176,32 +177,6 @@ export default async function frontend(fastify: FastifyInstance) {
 		await signOut(request, reply.clearCookie.bind(reply));
 		return reply.redirect("/");
 	});
-
-	fastify.get<{ Querystring: AuthorizationRequestQueryParams }>(
-		"/approve",
-		async function (request, reply) {
-			// TODO check if user signed in
-			// TODO add checks in case of invalid query string data
-			// TODO confirm that redirect_uri matches
-			// (basically same checks as /authorize endpoint)
-			const clientName = (
-				await query("SELECT name FROM clients WHERE id = $1", [request.query.client_id])
-			).rows[0].name;
-			const redirectUri = request.query.redirect_uri;
-			return reply.view("approvePage.ejs", { clientName, redirectUri });
-		},
-	);
-
-	fastify.post<{ Querystring: AuthorizationRequestQueryParams }>(
-		"/approve",
-		function (request, reply) {
-			// TODO check if user signed in and return actual authorization code.
-
-			return reply.redirect(
-				`${request.query.redirect_uri}?code=traladdddddl&state=${request.query.state}`,
-			);
-		},
-	);
 
 	/**
 	 * Follows rfc6749 standard for authorization request handling and response.
@@ -231,12 +206,26 @@ export default async function frontend(fastify: FastifyInstance) {
 				return reply.redirect(newRedirectUri);
 			}
 
-			if (await isUserSignedIn(request)) {
-				return reply.redirect(`/approve?${querystring.stringify(request.query)}`);
+			if (!(await isUserSignedIn(request))) {
+				return reply.redirect(`/login?${querystring.stringify(request.query)}`);
 			}
 
-			// TODO check that query params are valid
-			return reply.redirect(`/login?${querystring.stringify(request.query)}`);
+			const clientName = (
+				await query("SELECT name FROM clients WHERE id = $1", [request.query.client_id])
+			).rows[0].name;
+
+			return reply.view("approvePage.ejs", { clientName });
+		},
+	);
+
+	fastify.post<{ Querystring: AuthorizationRequestQueryParams }>(
+		"/authorize",
+		function (request, reply) {
+			// TODO check if user signed in and return actual authorization code.
+
+			return reply.redirect(
+				`${request.query.redirect_uri}?code=traladdddddl&state=${request.query.state}`,
+			);
 		},
 	);
 

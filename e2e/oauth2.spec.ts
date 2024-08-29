@@ -63,7 +63,7 @@ test("oauth2 flow happy path", async ({ page, baseURL }) => {
 
 	// Signed in user is asked to approve the client.
 	await page.waitForURL(
-		`/approve?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 	await expect(
 		page.getByRole("heading", { name: `"${name}" wants to access your user data` }),
@@ -116,9 +116,6 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 	);
 
 	// Signed in user is immediately asked to approve the client.
-	await page.waitForURL(
-		`/approve?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
-	);
 	await expect(
 		page.getByRole("heading", { name: `"${name}" wants to access your user data` }),
 	).toBeVisible();
@@ -261,7 +258,7 @@ const validPKCEChallenge = "B3b_JHueqI6LBp_WhuR7NfViLSgGVeXBpfpEMjoSdok";
 	});
 });
 
-// test("/approve endpoint should redirect with access_denied error code if user denies the authorization request", () => {});
+// test("/authorize endpoint should redirect with access_denied error code if user denies the authorization request", () => {});
 
 /**
  * TODO validation for authorization endpoint:
