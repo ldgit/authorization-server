@@ -23,7 +23,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		});
 	});
 
-	fastify.post("/resource/basic-info", async function (request, reply) {
+	fastify.post("/userinfo", async function (request, reply) {
 		const { username, name, surname } = (await getSignedInUser(request)) as User;
 		return reply.send({ username, name, surname });
 	});

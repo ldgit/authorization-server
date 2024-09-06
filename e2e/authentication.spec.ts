@@ -54,7 +54,7 @@ test("Login validation error", async ({ page }) => {
 
 test("Login should preserve query parameters on validation error", async ({ page }) => {
 	await page.goto(
-		"/login?client_id=123&response_type=code&redirect_uri=https://www.example.com&scope=basic-info",
+		"/login?client_id=123&response_type=code&redirect_uri=https://www.example.com&scope=openid",
 	);
 
 	// Everything empty.
@@ -82,7 +82,7 @@ function expectQueryParametersToBePreserved(url: string) {
 	expect(loginPageSearchParams.get("client_id")).toEqual("123");
 	expect(loginPageSearchParams.get("response_type")).toEqual("code");
 	expect(loginPageSearchParams.get("redirect_uri")).toEqual("https://www.example.com");
-	expect(loginPageSearchParams.get("scope")).toEqual("basic-info");
+	expect(loginPageSearchParams.get("scope")).toEqual("openid");
 }
 
 test("Create new account happy path", async ({ page, browserName }) => {

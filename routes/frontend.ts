@@ -287,7 +287,7 @@ function validateAuthorizeQueryString(
 			: "invalid_request";
 	}
 
-	if (request.query.scope !== "basic-info") {
+	if (request.query.scope !== "openid") {
 		return !request.query.scope || typeof request.query.scope === "object"
 			? "invalid_request"
 			: "invalid_scope";

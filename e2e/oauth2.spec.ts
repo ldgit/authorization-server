@@ -58,12 +58,12 @@ test("oauth2 flow happy path", async ({ page, baseURL }) => {
 	 * Start with request for an authorization token.
 	 */
 	await page.goto(
-		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 
 	// User is taken to the login page to sign in first while preserving the query parameters.
 	await page.waitForURL(
-		`/login?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/login?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 	await page.getByLabel(/Username/).fill("MarkS");
 	await page.getByLabel(/Password/).fill("test");
@@ -71,7 +71,7 @@ test("oauth2 flow happy path", async ({ page, baseURL }) => {
 
 	// Signed in user is asked to approve the client.
 	await page.waitForURL(
-		`/authorize?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 	await expect(
 		page.getByRole("heading", { name: `"${name}" wants to access your user data` }),
@@ -116,7 +116,7 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 	 * Start with request for an authorization token.
 	 */
 	await page.goto(
-		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 
 	// Signed in user is immediately asked to approve the client.
@@ -152,11 +152,11 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 		const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
 
 		await page.goto(
-			`/authorize?response_type=code&client_id=${notAClientId}&redirect_uri=https://www.google.com&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+			`/authorize?response_type=code&client_id=${notAClientId}&redirect_uri=https://www.google.com&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 		);
 
 		await page.waitForURL(
-			`/error/client-id?response_type=code&client_id=${notAClientId}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+			`/error/client-id?response_type=code&client_id=${notAClientId}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 		);
 		await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
 		await expect(
@@ -189,11 +189,11 @@ test("authorization endpoint should warn resource owner (user) about the incorre
 	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
 
 	await page.goto(
-		`/authorize?response_type=code&client_id=${id}&redirect_uri=https://www.google.com&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=https://www.google.com&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 
 	await page.waitForURL(
-		`/error/redirect-uri?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/error/redirect-uri?response_type=code&client_id=${id}&redirect_uri=${encodeURIComponent("https://www.google.com")}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 	await expect(page.getByRole("heading", { name: "Error" })).toBeVisible();
 	await expect(
@@ -226,22 +226,22 @@ const validPKCEChallenge = "B3b_JHueqI6LBp_WhuR7NfViLSgGVeXBpfpEMjoSdok";
 [
 	{
 		description: "unsupported response_type",
-		invalidQueryString: `response_type=token&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		invalidQueryString: `response_type=token&scope=openid&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
 		expectedError: "unsupported_response_type",
 	},
 	{
 		description: "invalid response_type",
-		invalidQueryString: `response_type=qwerty&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		invalidQueryString: `response_type=qwerty&scope=openid&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
 		expectedError: "invalid_request",
 	},
 	{
 		description: "missing response_type",
-		invalidQueryString: `scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		invalidQueryString: `scope=openid&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
 		expectedError: "invalid_request",
 	},
 	{
 		description: "duplicate response_type",
-		invalidQueryString: `response_type=code&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&response_type=code`,
+		invalidQueryString: `response_type=code&scope=openid&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&response_type=code`,
 		expectedError: "invalid_request",
 	},
 	{
@@ -256,39 +256,39 @@ const validPKCEChallenge = "B3b_JHueqI6LBp_WhuR7NfViLSgGVeXBpfpEMjoSdok";
 	},
 	{
 		description: "duplicate scope",
-		invalidQueryString: `response_type=code&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&scope=basic-info`,
+		invalidQueryString: `response_type=code&scope=openid&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&scope=openid`,
 		expectedError: "invalid_request",
 	},
 	{
 		description: "missing code_challenge",
 		invalidQueryString:
-			"response_type=code&scope=basic-info&state=validState&code_challenge_method=S256",
+			"response_type=code&scope=openid&state=validState&code_challenge_method=S256",
 		expectedError: "invalid_request",
 	},
 	{
 		description: "unsupported code_challenge",
 		invalidQueryString:
-			"response_type=code&scope=basic-info&state=validState&code_challenge=&code_challenge_method=S256",
+			"response_type=code&scope=openid&state=validState&code_challenge=&code_challenge_method=S256",
 		expectedError: "invalid_request",
 	},
 	{
 		description: "duplicate code_challenge",
-		invalidQueryString: `response_type=code&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&code_challenge=${validPKCEChallenge}`,
+		invalidQueryString: `response_type=code&scope=openid&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256&code_challenge=${validPKCEChallenge}`,
 		expectedError: "invalid_request",
 	},
 	{
 		description: "unsupported code_challenge_method",
-		invalidQueryString: `response_type=code&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S224`,
+		invalidQueryString: `response_type=code&scope=openid&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S224`,
 		expectedError: "invalid_request",
 	},
 	{
 		description: "missing code_challenge_method",
-		invalidQueryString: `response_type=code&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}`,
+		invalidQueryString: `response_type=code&scope=openid&state=validState&code_challenge=${validPKCEChallenge}`,
 		expectedError: "invalid_request",
 	},
 	{
 		description: "duplicate code_challenge_method",
-		invalidQueryString: `response_type=code&code_challenge_method=S256&scope=basic-info&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
+		invalidQueryString: `response_type=code&code_challenge_method=S256&scope=openid&state=validState&code_challenge=${validPKCEChallenge}&code_challenge_method=S256`,
 		expectedError: "invalid_request",
 	},
 ].forEach(({ description, invalidQueryString, expectedError }) => {
@@ -361,7 +361,7 @@ test("/authorize endpoint should redirect with access_denied error code if user 
 
 	/** Request an authorization token. */
 	await page.goto(
-		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
 	);
 
 	// Signed in user is asked to approve the client, but denies access instead.
@@ -456,7 +456,7 @@ async function assertFetchingBasicInfoWorks(page: Page, accessToken: string) {
 	/**
 	 * Using the access token fetch basic user info from the resource server.
 	 */
-	const resourceResponse = await page.request.post("/api/v1/resource/basic-info", {
+	const resourceResponse = await page.request.post("/api/v1/userinfo", {
 		headers: { Authorization: `Bearer ${accessToken}` },
 	});
 	expect(resourceResponse.ok()).toBeTruthy();
