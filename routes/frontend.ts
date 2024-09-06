@@ -161,12 +161,11 @@ export default async function frontend(fastify: FastifyInstance) {
 			await signInUser(user.id, reply.setCookie.bind(reply) as SetCookieHandler);
 
 			// If there are Oauth2 parameters in the query string redirect user back to /authorize endpoint
-			// to approve/deny the request.
+			// so the user can approve or deny the authorization request.
 			// We check that query string parameters are valid there.
 			if (request.query.redirect_uri) {
-				// TODO do not send error param
-				// const { error, ...oauth2Params } = request.query;
-				return reply.redirect(`/authorize?${querystring.stringify(request.query)}`);
+				const { error, ...oauth2Params } = request.query; // Remove the error parameter if present.
+				return reply.redirect(`/authorize?${querystring.stringify(oauth2Params)}`);
 			}
 
 			return reply.redirect("/");
