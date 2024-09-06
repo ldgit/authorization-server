@@ -196,46 +196,15 @@ export default async function frontend(fastify: FastifyInstance) {
 				return reply.redirect(`/error/redirect-uri?${querystring.stringify(request.query)}`);
 			}
 
-			if (request.query.response_type !== "code") {
-				const newRedirectUri = attachErrorInformationToRedirectUri(
-					request.query.redirect_uri,
-					request.query.state,
-					request.query.response_type === "token" ? "unsupported_response_type" : "invalid_request",
+			const errorType = validateAuthorizeQueryString(request);
+			if (errorType !== "valid") {
+				return reply.redirect(
+					attachErrorInformationToRedirectUri(
+						request.query.redirect_uri,
+						request.query.state,
+						errorType,
+					),
 				);
-
-				return reply.redirect(newRedirectUri);
-			}
-
-			if (request.query.scope !== "basic-info") {
-				const newRedirectUri = attachErrorInformationToRedirectUri(
-					request.query.redirect_uri,
-					request.query.state,
-					!request.query.scope || typeof request.query.scope === "object"
-						? "invalid_request"
-						: "invalid_scope",
-				);
-
-				return reply.redirect(newRedirectUri);
-			}
-
-			if (!request.query.code_challenge || typeof request.query.code_challenge === "object") {
-				const newRedirectUri = attachErrorInformationToRedirectUri(
-					request.query.redirect_uri,
-					request.query.state,
-					"invalid_request",
-				);
-
-				return reply.redirect(newRedirectUri);
-			}
-
-			if (request.query.code_challenge_method !== "S256") {
-				const newRedirectUri = attachErrorInformationToRedirectUri(
-					request.query.redirect_uri,
-					request.query.state,
-					"invalid_request",
-				);
-
-				return reply.redirect(newRedirectUri);
 			}
 
 			if (!(await isUserSignedIn(request))) {
@@ -250,10 +219,26 @@ export default async function frontend(fastify: FastifyInstance) {
 		},
 	);
 
+	/**
+	 * Called when the user approves (or denies) the client's request for authorization.
+	 */
 	fastify.post<{ Querystring: AuthorizationRequestQueryParams }>(
 		"/authorize",
-		function (request, reply) {
-			// TODO check if user signed in and return actual authorization code.
+		async function (request, reply) {
+			if (!(await isUserSignedIn(request))) {
+				return reply.code(403).send("Forbidden");
+			}
+
+			const errorType = validateAuthorizeQueryString(request);
+			if (errorType !== "valid") {
+				return reply.redirect(
+					attachErrorInformationToRedirectUri(
+						request.query.redirect_uri,
+						request.query.state,
+						errorType,
+					),
+				);
+			}
 
 			return reply.redirect(
 				`${request.query.redirect_uri}?code=traladdddddl&state=${request.query.state}`,
@@ -272,4 +257,34 @@ export default async function frontend(fastify: FastifyInstance) {
 			return reply.view("errorPage.ejs", { errorType, clientId: request.query.client_id });
 		},
 	);
+}
+
+/**
+ * @param request Fastify `/authorize` request.
+ * @returns error type or 'valid'.
+ */
+function validateAuthorizeQueryString(
+	request: FastifyRequest<{ Querystring: AuthorizationRequestQueryParams }>,
+): AuthorizationResponseErrorType | "valid" {
+	if (request.query.response_type !== "code") {
+		return request.query.response_type === "token"
+			? "unsupported_response_type"
+			: "invalid_request";
+	}
+
+	if (request.query.scope !== "basic-info") {
+		return !request.query.scope || typeof request.query.scope === "object"
+			? "invalid_request"
+			: "invalid_scope";
+	}
+
+	if (!request.query.code_challenge || typeof request.query.code_challenge === "object") {
+		return "invalid_request";
+	}
+
+	if (request.query.code_challenge_method !== "S256") {
+		return "invalid_request";
+	}
+
+	return "valid";
 }

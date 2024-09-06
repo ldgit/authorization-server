@@ -30,6 +30,14 @@ async function createTestClient(baseURL: string) {
 	return { id, secret, name, redirectUri };
 }
 
+async function signInUser(page: Page, username: string, password: string) {
+	await page.goto("/login");
+	await page.getByLabel(/Username/).fill(username);
+	await page.getByLabel(/Password/).fill(password);
+	await page.getByRole("button", { name: "Sign in" }).click();
+	await page.waitForURL("/");
+}
+
 // TODO remove this?
 test.setTimeout(4000);
 
@@ -95,11 +103,7 @@ test("oauth2 flow happy path", async ({ page, baseURL }) => {
 
 test("oauth2 flow happy path when the user is already signed in", async ({ page, baseURL }) => {
 	// Sign in the user first.
-	await page.goto("/login");
-	await page.getByLabel(/Username/).fill("MarkS");
-	await page.getByLabel(/Password/).fill("test");
-	await page.getByRole("button", { name: "Sign in" }).click();
-	await page.waitForURL("/");
+	await signInUser(page, "MarkS", "test");
 
 	const { id, name, redirectUri, secret } = await createTestClient(baseURL as string);
 	const codeVerifier = generateCodeVerifier();
@@ -288,10 +292,11 @@ const validPKCEChallenge = "B3b_JHueqI6LBp_WhuR7NfViLSgGVeXBpfpEMjoSdok";
 		expectedError: "invalid_request",
 	},
 ].forEach(({ description, invalidQueryString, expectedError }) => {
-	test(`/authorize endpoint should redirect back with ${expectedError} error in case of ${description} (${invalidQueryString})`, async ({
+	test(`GET /authorize endpoint should redirect back with ${expectedError} error in case of ${description} (${invalidQueryString})`, async ({
 		page,
 		baseURL,
 	}) => {
+		// We don't need to sign in the user for this test, these checks are performed before the user check.
 		const { id, redirectUri } = await createTestClient(baseURL as string);
 
 		await page.goto(`/authorize?client_id=${id}&redirect_uri=${redirectUri}&${invalidQueryString}`);
@@ -303,6 +308,42 @@ const validPKCEChallenge = "B3b_JHueqI6LBp_WhuR7NfViLSgGVeXBpfpEMjoSdok";
 		expect(expectedRedirectUri.searchParams.get("code")).toBeNull();
 		await expect(expectedRedirectUri.searchParams.get("state")).toEqual("validState");
 	});
+
+	test(`POST /authorize endpoint should redirect back with ${expectedError} error in case of ${description} (${invalidQueryString})`, async ({
+		page,
+		baseURL,
+	}) => {
+		const { id, redirectUri } = await createTestClient(baseURL as string);
+		await signInUser(page, "MarkS", "test");
+
+		const response = await page.request.post(
+			`/authorize?client_id=${id}&redirect_uri=${redirectUri}&${invalidQueryString}`,
+			{
+				form: { approved: "" },
+				maxRedirects: 0,
+			},
+		);
+
+		expect(response.status()).toEqual(302);
+		expect(response.headers().location).toContain(redirectUri);
+		const expectedRedirectUri = new URL(response.headers().location);
+		expect(expectedRedirectUri.searchParams.get("error")).toEqual(expectedError);
+		expect(expectedRedirectUri.searchParams.get("code")).toBeNull();
+		expect(expectedRedirectUri.searchParams.get("state")).toEqual("validState");
+	});
+});
+
+test("POST /authorize endpoint should return 403 error if user is not signed in", async ({
+	page,
+}) => {
+	// We make the request with a invalid query string because we want to check if user is signed in first.
+	const response = await page.request.post("/authorize", {
+		form: { approved: "" },
+		maxRedirects: 0,
+	});
+
+	expect(response.status()).toEqual(403);
+	expect(response.statusText()).toEqual("Forbidden");
 });
 
 // test("/authorize endpoint should redirect with access_denied error code if user denies the authorization request", () => {});
