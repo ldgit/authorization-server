@@ -219,10 +219,15 @@ export default async function frontend(fastify: FastifyInstance) {
 		},
 	);
 
+	interface AuthorizeRequestBody {
+		approved: "" | undefined;
+		denied: "" | undefined;
+	}
+
 	/**
 	 * Called when the user approves (or denies) the client's request for authorization.
 	 */
-	fastify.post<{ Querystring: AuthorizationRequestQueryParams }>(
+	fastify.post<{ Querystring: AuthorizationRequestQueryParams; Body: AuthorizeRequestBody }>(
 		"/authorize",
 		async function (request, reply) {
 			if (!(await isUserSignedIn(request))) {
@@ -236,6 +241,16 @@ export default async function frontend(fastify: FastifyInstance) {
 						request.query.redirect_uri,
 						request.query.state,
 						errorType,
+					),
+				);
+			}
+
+			if (request.body.denied !== undefined) {
+				return reply.redirect(
+					attachErrorInformationToRedirectUri(
+						request.query.redirect_uri,
+						request.query.state,
+						"access_denied",
 					),
 				);
 			}

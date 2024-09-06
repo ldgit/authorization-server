@@ -346,6 +346,41 @@ test("POST /authorize endpoint should return 403 error if user is not signed in"
 	expect(response.statusText()).toEqual("Forbidden");
 });
 
+test("/authorize endpoint should redirect with access_denied error code if user denies the authorization request", async ({
+	page,
+	baseURL,
+}) => {
+	await signInUser(page, "MarkS", "test");
+
+	const { id, name, redirectUri } = await createTestClient(baseURL as string);
+	const codeVerifier = generateCodeVerifier();
+	// Create code challenge from code verifier.
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	// State can just be a random string for test purposes.
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+
+	/** Request an authorization token. */
+	await page.goto(
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=basic-info&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+
+	// Signed in user is asked to approve the client, but denies access instead.
+	await expect(
+		page.getByRole("heading", { name: `"${name}" wants to access your user data` }),
+	).toBeVisible();
+	// User approves the client.
+	await page.getByRole("button", { name: "Deny" }).click();
+
+	await page.waitForURL(/\/\?/);
+	const { protocol, host, pathname, searchParams } = new URL(page.url());
+	const actualRedirectUri = `${protocol}//${host}${pathname}`;
+	expect(actualRedirectUri).toEqual(redirectUri);
+	// We verify the data in the redirect_uri query string is there.
+	expect(searchParams.get("code")).toBeNull();
+	expect(searchParams.get("state")).toEqual(state);
+	expect(searchParams.get("error")).toEqual("access_denied");
+});
+
 // test("/authorize endpoint should redirect with access_denied error code if user denies the authorization request", () => {});
 
 /**

@@ -1,8 +1,9 @@
 <%- include('header', { title: `An application wants to connect to your account` }); %>
 
 <main class="container mx-auto min-w-fit flex flex-col items-center text-center justify-center">
-  <h2 class="text-2xl">"<%= clientName %>" wants to access your user data</h2>
+  <h2 class="text-2xl mb-2">"<%= clientName %>" wants to access your user data</h2>
   <form action="" method="post">
-    <%- include('button', { color: 'blue', type: 'submit', text: 'Approve' }); %>
+    <%- include('button', { color: 'blue', type: 'submit', text: 'Approve', name: 'approved' }); %>
+    <%- include('button', { color: 'red', type: 'submit', text: 'Deny', name: 'denied' }); %>
   </form>
 </main>
