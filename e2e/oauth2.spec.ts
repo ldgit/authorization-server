@@ -381,14 +381,6 @@ test("/authorize endpoint should redirect with access_denied error code if user 
 	expect(searchParams.get("error")).toEqual("access_denied");
 });
 
-// test("/authorize endpoint should redirect with access_denied error code if user denies the authorization request", () => {});
-
-/**
- * TODO validation for authorization endpoint:
- * - if client parameter other than redirect uri is invalid, redirect back to client with just state param and error param where error is documented here https://datatracker.ietf.org/doc/html/rfc6749.html#section-4.1.2.1
- * - when redirecting back to redirect_uri, ignore existing query parameters and just add your own
- */
-
 /**
  * TODO validation for POST /token tests:
  * - one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
