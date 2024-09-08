@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { URL } from "node:url";
-import { type Page, expect, test } from "@playwright/test";
+import { type Page, expect, request, test } from "@playwright/test";
 import * as argon2 from "argon2";
 import cryptoRandomString from "crypto-random-string";
 import { v4 as uuidv4 } from "uuid";
@@ -87,7 +87,7 @@ test("oauth2 flow happy path", async ({ page, baseURL }) => {
 	await page.waitForURL(/\/\?/);
 	const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(page.url(), state);
 
-	const response = await requestAccessToken(page, {
+	const response = await requestAccessToken({
 		clientId: id,
 		clientSecret: secret,
 		authorizationCode,
@@ -98,7 +98,7 @@ test("oauth2 flow happy path", async ({ page, baseURL }) => {
 	const responseJson = await response.json();
 	assertAccessTokenResponseFollowsSpecs(responseJson, await response.headers());
 
-	await assertFetchingBasicInfoWorks(page, responseJson.access_token);
+	await assertUserinfoEndpointWorks(responseJson.access_token);
 });
 
 test("oauth2 flow happy path when the user is already signed in", async ({ page, baseURL }) => {
@@ -129,7 +129,7 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 	await page.waitForURL(/\/\?/);
 	const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(page.url(), state);
 
-	const response = await requestAccessToken(page, {
+	const response = await requestAccessToken({
 		clientId: id,
 		clientSecret: secret,
 		authorizationCode,
@@ -140,7 +140,7 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 	const responseJson = await response.json();
 	assertAccessTokenResponseFollowsSpecs(responseJson, await response.headers());
 
-	await assertFetchingBasicInfoWorks(page, responseJson.access_token);
+	await assertUserinfoEndpointWorks(responseJson.access_token);
 });
 
 ["", "0054478d-431c-4e21-bc48-ffb4c3eb2ac0"].forEach((notAClientId) => {
@@ -414,16 +414,30 @@ async function getAuthorizationCodeFromRedirectUriQueryString(
 }
 
 /**
+ *
+ * send user's cookies. These endpoints are "back channel", ie. they are not meant to be accessed by user's browser
+ *
+ * @see https://playwright.dev/docs/api/class-fixtures#fixtures-request
+ */
+
+/**
  * Using the authorization code we received we request an access token from the authorization server.
  *
  * The client is authenticated by the auth server using Basic Authentication Scheme as described in RFC2617.
+ *
  * @see https://datatracker.ietf.org/doc/html/rfc2617#section-2
+ * @see https://playwright.dev/docs/api-testing#using-request-context We deliberately create new request context
+ * so we don't accidentally send user's session cookie in the API request.
  */
-async function requestAccessToken(
-	page: Page,
-	{ clientId, clientSecret, redirectUri, authorizationCode, codeVerifier }: any,
-) {
-	return await page.request.post("/api/v1/token", {
+async function requestAccessToken({
+	clientId,
+	clientSecret,
+	redirectUri,
+	authorizationCode,
+	codeVerifier,
+}: any) {
+	const apiRequest = await request.newContext();
+	return await apiRequest.post("/api/v1/token", {
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
 			Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
@@ -452,11 +466,16 @@ function assertAccessTokenResponseFollowsSpecs(responseJson: any, headers: any) 
 	expect(headers["content-type"]).toEqual("application/json; charset=utf-8");
 }
 
-async function assertFetchingBasicInfoWorks(page: Page, accessToken: string) {
+/**
+ * @see https://playwright.dev/docs/api-testing#using-request-context We deliberately create new request context
+ * so we don't accidentally send user's session cookie in the API request.
+ */
+async function assertUserinfoEndpointWorks(accessToken: string) {
+	const apiRequest = await request.newContext();
 	/**
 	 * Using the access token fetch basic user info from the resource server.
 	 */
-	const resourceResponse = await page.request.post("/api/v1/userinfo", {
+	const resourceResponse = await apiRequest.post("/api/v1/userinfo", {
 		headers: { Authorization: `Bearer ${accessToken}` },
 	});
 	expect(resourceResponse.ok()).toBeTruthy();

@@ -23,8 +23,8 @@ export default async function frontend(fastify: FastifyInstance) {
 		});
 	});
 
-	fastify.post("/userinfo", async function (request, reply) {
-		const { username, name, surname } = (await getSignedInUser(request)) as User;
-		return reply.send({ username, name, surname });
+	fastify.post("/userinfo", function (request, reply) {
+		// TODO get actual userinfo using the provided access token
+		return reply.send({ username: "MarkS", name: "Mark", surname: "Scout" });
 	});
 }
