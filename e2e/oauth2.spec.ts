@@ -4,7 +4,13 @@ import { type Page, expect, request, test } from "@playwright/test";
 import * as argon2 from "argon2";
 import cryptoRandomString from "crypto-random-string";
 import { v4 as uuidv4 } from "uuid";
+import {
+	DUMMY_CLIENT_ID,
+	DUMMY_CLIENT_REDIRECT_URI,
+	DUMMY_CLIENT_SECRET,
+} from "../database/createDummyData.js";
 import { query } from "../database/database.js";
+import type { AccessTokenRequestQueryParams } from "../routes/api.js";
 
 async function createTestClient(baseURL: string) {
 	const secret = cryptoRandomString({ length: 44, type: "alphanumeric" });
@@ -94,7 +100,7 @@ test("oauth2 flow happy path", async ({ page, baseURL }) => {
 		redirectUri,
 		codeVerifier,
 	});
-	expect(response.ok()).toBeTruthy();
+	expect(response.status()).toEqual(200);
 	const responseJson = await response.json();
 	assertAccessTokenResponseFollowsSpecs(responseJson, await response.headers());
 
@@ -136,7 +142,7 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 		redirectUri,
 		codeVerifier,
 	});
-	expect(response.ok()).toBeTruthy();
+	expect(response.status()).toEqual(200);
 	const responseJson = await response.json();
 	assertAccessTokenResponseFollowsSpecs(responseJson, await response.headers());
 
@@ -381,14 +387,218 @@ test("/authorize endpoint should redirect with access_denied error code if user 
 	expect(searchParams.get("error")).toEqual("access_denied");
 });
 
+["grant_type", "redirect_uri", "code", "code_verifier"].forEach((missingParameter: string) => {
+	test(`/token endpoint should respond with 400 error code if ${missingParameter} parameter is missing`, async ({
+		page,
+		baseURL,
+		request,
+	}) => {
+		await signInUser(page, "MarkS", "test");
+		const { id, redirectUri, secret } = await createTestClient(baseURL as string);
+		const codeVerifier = generateCodeVerifier();
+		const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+		const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+		await page.goto(
+			`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		);
+		// User approves the client.
+		await page.getByRole("button", { name: "Approve" }).click();
+		await page.waitForURL(/\/\?/);
+		const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(
+			page.url(),
+			state,
+		);
+
+		const formParameters: AccessTokenRequestQueryParams = {
+			grant_type: "authorization_code",
+			redirect_uri: redirectUri,
+			code: authorizationCode as string,
+			code_verifier: codeVerifier,
+		};
+		delete formParameters[missingParameter as keyof AccessTokenRequestQueryParams];
+
+		const response = await request.post("/api/v1/token", {
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+				Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+			},
+			form: formParameters as any,
+		});
+		expect(response.status()).toEqual(400);
+		expect(response.statusText()).toEqual("Bad Request");
+		expect(await response.json()).toEqual({ error: "invalid_request" });
+		expectTokenEndpointHeadersAreCorrect(response.headers());
+	});
+});
+
+test("/token endpoint should respond with 401 error if client credentials are invalid (no authorization)", async ({
+	page,
+	request,
+}) => {
+	await signInUser(page, "MarkS", "test");
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+	await page.goto(
+		`/authorize?response_type=code&client_id=${DUMMY_CLIENT_ID}&redirect_uri=${DUMMY_CLIENT_REDIRECT_URI}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+	await page.getByRole("button", { name: "Approve" }).click();
+	await page.waitForURL(`${DUMMY_CLIENT_REDIRECT_URI}**`);
+	const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(page.url(), state);
+
+	const response = await request.post("/api/v1/token", {
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+		},
+		form: {
+			grant_type: "authorization_code",
+			redirect_uri: DUMMY_CLIENT_REDIRECT_URI,
+			code: authorizationCode as string,
+			code_verifier: codeVerifier,
+		},
+	});
+	expect(response.status()).toEqual(401);
+	expect(response.statusText()).toEqual("Unauthorized");
+	expect(response.headers()["www-authenticate"]).toEqual("Basic");
+	expect(await response.json()).toEqual({ error: "invalid_client" });
+	expectTokenEndpointHeadersAreCorrect(response.headers());
+});
+
+test("/token endpoint should respond with 401 error if client credentials are invalid (different client id)", async ({
+	page,
+	baseURL,
+	request,
+}) => {
+	await signInUser(page, "MarkS", "test");
+	// We start authorization as default dummy client, but then use this client's id.
+	const differentClient = await createTestClient(baseURL as string);
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+	await page.goto(
+		`/authorize?response_type=code&client_id=${DUMMY_CLIENT_ID}&redirect_uri=${DUMMY_CLIENT_REDIRECT_URI}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+	await page.getByRole("button", { name: "Approve" }).click();
+	await page.waitForURL(`${DUMMY_CLIENT_REDIRECT_URI}**`);
+	const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(page.url(), state);
+
+	const response = await request.post("/api/v1/token", {
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Authorization: `Basic ${btoa(`${differentClient.id}:${DUMMY_CLIENT_SECRET}`)}`,
+		},
+		form: {
+			grant_type: "authorization_code",
+			redirect_uri: DUMMY_CLIENT_REDIRECT_URI,
+			code: authorizationCode as string,
+			code_verifier: codeVerifier,
+		},
+	});
+	expect(response.status()).toEqual(401);
+	expect(response.statusText()).toEqual("Unauthorized");
+	expect(response.headers()["www-authenticate"]).toEqual("Basic");
+	expect(await response.json()).toEqual({ error: "invalid_client" });
+	expectTokenEndpointHeadersAreCorrect(response.headers());
+});
+
+[
+	["unknown client", { id: "4998308c-071a-4191-abbd-2372b48c9d20", secret: DUMMY_CLIENT_SECRET }],
+	["different client secret", { id: DUMMY_CLIENT_ID, secret: "different_secret" }],
+].forEach(([description, client]: any) => {
+	test(`/token endpoint should respond with 401 error if client credentials are invalid (${description})`, async ({
+		page,
+		request,
+	}) => {
+		await signInUser(page, "MarkS", "test");
+		const codeVerifier = generateCodeVerifier();
+		const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+		const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+		await page.goto(
+			`/authorize?response_type=code&client_id=${DUMMY_CLIENT_ID}&redirect_uri=${DUMMY_CLIENT_REDIRECT_URI}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		);
+		await page.getByRole("button", { name: "Approve" }).click();
+		await page.waitForURL(`${DUMMY_CLIENT_REDIRECT_URI}**`);
+		const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(
+			page.url(),
+			state,
+		);
+
+		const response = await request.post("/api/v1/token", {
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+				Authorization: `Basic ${btoa(`${client.id}:${client.secret}`)}`,
+			},
+			form: {
+				grant_type: "authorization_code",
+				redirect_uri: DUMMY_CLIENT_REDIRECT_URI,
+				code: authorizationCode as string,
+				code_verifier: codeVerifier,
+			},
+		});
+		expect(response.status()).toEqual(401);
+		expect(response.statusText()).toEqual("Unauthorized");
+		expect(response.headers()["www-authenticate"]).toEqual("Basic");
+		expect(await response.json()).toEqual({ error: "invalid_client" });
+		expectTokenEndpointHeadersAreCorrect(response.headers());
+	});
+});
+
+[
+	["redirect_uri", "invalid_grant"],
+	// TODO: PKCE verification
+	// ["code_verifier", "invalid_request"],
+].forEach(([parameter, expectedError]) => {
+	test(`/token endpoint should respond with 400 error code if ${parameter} parameter has unsupported value`, async ({
+		page,
+		baseURL,
+		request,
+	}) => {
+		await signInUser(page, "MarkS", "test");
+		const { id, redirectUri, secret } = await createTestClient(baseURL as string);
+		const codeVerifier = generateCodeVerifier();
+		const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+		const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+		await page.goto(
+			`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		);
+		// User approves the client.
+		await page.getByRole("button", { name: "Approve" }).click();
+		await page.waitForURL(/\/\?/);
+		const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(
+			page.url(),
+			state,
+		);
+
+		const formParameters: any = {
+			grant_type: "authorization_code",
+			redirect_uri: redirectUri,
+			code: authorizationCode as string,
+			code_verifier: codeVerifier,
+		};
+		formParameters[parameter] = "unsupported value";
+
+		const response = await request.post("/api/v1/token", {
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+				Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+			},
+			form: formParameters,
+		});
+		expect(response.status()).toEqual(400);
+		expect(response.statusText()).toEqual("Bad Request");
+		expect(await response.json()).toEqual({ error: expectedError });
+		expectTokenEndpointHeadersAreCorrect(response.headers());
+	});
+});
+
 /**
  * TODO validation for POST /token tests:
- * - one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
- * - one of the parameters unsupported: respond with 400 http status code, `error: invalid_request`
+ * + one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
+ * - one of the parameters is of unsupported value: respond with 400 http status code, `error: invalid_request`
  * - one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
  * - redirect uri does not match: respond with 400 http status code, `error: invalid_grant`
- * - authorization code is invalid or expired: respond with 400 http status code, `error: invalid_grant`
  * - unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
+ * - authorization code is invalid or expired: respond with 400 http status code, `error: invalid_grant`
  * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
  */
 
@@ -461,6 +671,10 @@ function assertAccessTokenResponseFollowsSpecs(responseJson: any, headers: any) 
 	expect(responseJson.token_type).toEqual("Bearer");
 	expect(responseJson.expires_in).toEqual(86400);
 	expect(responseJson.scope).toEqual("basic_info");
+	expectTokenEndpointHeadersAreCorrect(headers);
+}
+
+function expectTokenEndpointHeadersAreCorrect(headers: any) {
 	expect(headers["cache-control"]).toEqual("no-store");
 	expect(headers.pragma).toEqual("no-cache");
 	expect(headers["content-type"]).toEqual("application/json; charset=utf-8");

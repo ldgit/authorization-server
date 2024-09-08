@@ -3,10 +3,9 @@ import { query, transactionQuery } from "../database/database.js";
 
 /** Only for use in tests. */
 export const DUMMY_CLIENT_ID = "23f0706a-f556-477f-a8cb-808bd045384f";
-/** Only for use in tests. */
 export const DUMMY_CLIENT_NAME = "Lumon Industries";
-/** Only for use in tests. */
-export const DUMMY_CLIENT_REDIRECT_URI = "https://lumon.example.com";
+export const DUMMY_CLIENT_REDIRECT_URI = "http://127.0.0.1:3000/";
+export const DUMMY_CLIENT_SECRET = "secret_123";
 
 /**
  * Fills the database with dummy data.
@@ -45,7 +44,7 @@ export async function createDummyData() {
 					DUMMY_CLIENT_ID,
 					DUMMY_CLIENT_NAME,
 					DUMMY_CLIENT_REDIRECT_URI,
-					"secret_123",
+					await argon2.hash(DUMMY_CLIENT_SECRET),
 					"A dummy client used for testing and development purposes.",
 				],
 			);

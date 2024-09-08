@@ -44,8 +44,11 @@ describe("client authentication", () => {
 		["${btoa(`${clientId}:${clientSecret}`)}`)}", `${btoa(`${clientId}:${clientSecret}`)}`],
 		["undefined", undefined],
 	])) {
-		it(`extractClientCredentials should return null if authorization header is invalid (${description})`, () => {
-			expect(extractClientCredentials(authorizationHeader)).toBeNull();
+		it(`extractClientCredentials should return empty object if authorization header is invalid (${description})`, () => {
+			expect(extractClientCredentials(authorizationHeader)).toEqual({
+				clientId: "",
+				clientSecret: "",
+			});
 		});
 	}
 

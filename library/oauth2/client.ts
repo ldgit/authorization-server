@@ -2,6 +2,39 @@ import { validate as isValidUUID } from "uuid";
 import { query } from "../../database/database.js";
 import type { AuthorizationResponseErrorType } from "../../routes/frontend.js";
 
+export interface Client {
+	id: string;
+	name: string;
+	redirectUri: string;
+	secret: string;
+	description: string;
+}
+
+export async function getClientById(id: string): Promise<Client | null> {
+	if (!isValidUUID(id)) {
+		return null;
+	}
+
+	const result = await query(
+		"SELECT id, name, redirect_uri, secret, description FROM clients WHERE id = $1",
+		[id],
+	);
+
+	if (result.rowCount !== 1) {
+		return null;
+	}
+
+	const client = result.rows[0];
+
+	return {
+		id: client.id,
+		redirectUri: client.redirect_uri,
+		name: client.name,
+		secret: client.secret,
+		description: client.description,
+	};
+}
+
 export async function clientExists(clientId: string | undefined): Promise<boolean> {
 	if (!clientId || !isValidUUID(clientId)) {
 		return false;
@@ -19,22 +52,22 @@ export async function clientExists(clientId: string | undefined): Promise<boolea
 export function extractClientCredentials(authorizationHeader: string | undefined): {
 	clientId: string;
 	clientSecret: string;
-} | null {
+} {
 	if (!authorizationHeader) {
-		return null;
+		return { clientId: "", clientSecret: "" };
 	}
 
 	const [authorizationType, base64EncodedCredentials] = authorizationHeader.split(" ");
 
 	if (authorizationType !== "Basic") {
-		return null;
+		return { clientId: "", clientSecret: "" };
 	}
 
 	const credentials = atob(base64EncodedCredentials);
 	const [clientId, clientSecret] = credentials.split(":");
 
 	if (!clientSecret || !clientId) {
-		return null;
+		return { clientId: "", clientSecret: "" };
 	}
 
 	return { clientId, clientSecret };
