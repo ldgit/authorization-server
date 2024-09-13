@@ -34,6 +34,10 @@ export default async function frontend(fastify: FastifyInstance) {
 		}
 
 		const authorizationTokenData = await getAuthorizationTokenByCode(code);
+		if (authorizationTokenData === null) {
+			return reply.code(400).send({ error: "invalid_grant" });
+		}
+
 		if (!verifyPkceCodeAgainstCodeChallenge(code_verifier, authorizationTokenData?.codeChallenge)) {
 			return reply.code(400).send({ error: "invalid_request" });
 		}
