@@ -10,6 +10,7 @@ import {
 	DUMMY_CLIENT_SECRET,
 } from "../database/createDummyData.js";
 import { query } from "../database/database.js";
+import { createAuthorizationToken } from "../library/oauth2/authorizationToken.js";
 import type { AccessTokenRequestQueryParams } from "../routes/api.js";
 
 async function createTestClient(baseURL: string) {
@@ -590,7 +591,7 @@ test("/token endpoint should respond with 401 error if client credentials are in
 	});
 });
 
-test("/token endpoint should respond with 400 status code and invalid_grant error if code is not valid", async ({
+test("/token endpoint should respond with 400 status code and invalid_grant error if code does not exist", async ({
 	page,
 	baseURL,
 	request,
@@ -627,13 +628,61 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	expectTokenEndpointHeadersAreCorrect(response.headers());
 });
 
+test("/token endpoint should respond with 400 status code and invalid_grant error if code is for a different client", async ({
+	page,
+	baseURL,
+	request,
+}) => {
+	await signInUser(page, "MarkS", "test");
+	const { id, redirectUri, secret } = await createTestClient(baseURL as string);
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+	await page.goto(
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+	// User approves the client.
+	await page.getByRole("button", { name: "Approve" }).click();
+	await page.waitForURL(/\/\?/);
+
+	// Create authorization token for the dummy client for the same user, to force a client check in production code.
+	const userId = (await query("SELECT id FROM users WHERE username = $1", ["MarkS"])).rows[0].id;
+	const differentAuthCode = await createAuthorizationToken(
+		DUMMY_CLIENT_ID,
+		userId,
+		"openid",
+		codeChallenge,
+		"S256",
+	);
+
+	const formParameters: any = {
+		grant_type: "authorization_code",
+		redirect_uri: redirectUri,
+		// We send an auth code for a different client.
+		code: differentAuthCode,
+		code_verifier: codeVerifier,
+	};
+
+	const response = await request.post("/api/v1/token", {
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+		},
+		form: formParameters,
+	});
+	expect(response.status()).toEqual(400);
+	expect(response.statusText()).toEqual("Bad Request");
+	expect(await response.json()).toEqual({ error: "invalid_grant" });
+	expectTokenEndpointHeadersAreCorrect(response.headers());
+});
+
 /**
  * TODO validation for POST /token tests:
  * + one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
  * + redirect uri does not match: respond with 400 http status code, `error: invalid_grant`
  * + code_verifier is of unsupported value: respond with 400 http status code, `error: invalid_request`
  * + authorization code is invalid: respond with 400 http status code, `error: invalid_grant`
- * - authorization code matches client id: respond with 400 http status code, `error: invalid_grant`
+ * + authorization code matches client id: respond with 400 http status code, `error: invalid_grant`
  * - unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
  * - one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
  * - authorization code is expired: respond with 400 http status code, `error: invalid_grant`

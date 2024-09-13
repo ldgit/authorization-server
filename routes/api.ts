@@ -34,7 +34,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		}
 
 		const authorizationTokenData = await getAuthorizationTokenByCode(code);
-		if (authorizationTokenData === null) {
+		if (authorizationTokenData === null || authorizationTokenData.clientId !== clientId) {
 			return reply.code(400).send({ error: "invalid_grant" });
 		}
 
