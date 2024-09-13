@@ -8,12 +8,14 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { query } from "../database/database.js";
 import {
 	type SetCookieHandler,
+	type User,
 	createNewAccount,
 	getSignedInUser,
 	isUserSignedIn,
 	signInUser,
 	signOut,
 } from "../library/authentication.js";
+import { createAuthorizationToken } from "../library/oauth2/authorizationToken.js";
 import {
 	attachErrorInformationToRedirectUri,
 	clientExists,
@@ -244,6 +246,7 @@ export default async function frontend(fastify: FastifyInstance) {
 				);
 			}
 
+			// User denied the authorization request.
 			if (request.body.denied !== undefined) {
 				return reply.redirect(
 					attachErrorInformationToRedirectUri(
@@ -254,8 +257,17 @@ export default async function frontend(fastify: FastifyInstance) {
 				);
 			}
 
+			const user = (await getSignedInUser(request)) as User;
+			const authorizationCode = await createAuthorizationToken(
+				request.query.client_id,
+				user.id,
+				request.query.scope,
+				request.query.code_challenge,
+				request.query.code_challenge_method,
+			);
+
 			return reply.redirect(
-				`${request.query.redirect_uri}?code=traladdddddl&state=${request.query.state}`,
+				`${request.query.redirect_uri}?code=${authorizationCode}&state=${request.query.state}`,
 			);
 		},
 	);

@@ -1,6 +1,8 @@
 import * as argon2 from "argon2";
 import type { FastifyInstance } from "fastify";
+import { getAuthorizationTokenByCode } from "../library/oauth2/authorizationToken.js";
 import { extractClientCredentials, getClientById } from "../library/oauth2/client.js";
+import { verifyPkceCodeAgainstCodeChallenge } from "../library/oauth2/pkce.js";
 
 export interface AccessTokenRequestQueryParams {
 	grant_type: "authorization_code";
@@ -29,6 +31,11 @@ export default async function frontend(fastify: FastifyInstance) {
 
 		if (client.redirectUri !== redirect_uri) {
 			return reply.code(400).send({ error: "invalid_grant" });
+		}
+
+		const authorizationTokenData = await getAuthorizationTokenByCode(code);
+		if (!verifyPkceCodeAgainstCodeChallenge(code_verifier, authorizationTokenData?.codeChallenge)) {
+			return reply.code(400).send({ error: "invalid_request" });
 		}
 
 		return reply.send({

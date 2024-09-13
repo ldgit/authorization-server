@@ -150,7 +150,7 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 });
 
 ["", "0054478d-431c-4e21-bc48-ffb4c3eb2ac0"].forEach((notAClientId) => {
-	test(`authorization endpoint should should warn resource owner (user) if client doesn't exists (${notAClientId})`, async ({
+	test(`/authorize endpoint should should warn resource owner (user) if client doesn't exists (${notAClientId})`, async ({
 		page,
 	}) => {
 		const codeVerifier = generateCodeVerifier();
@@ -185,7 +185,7 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 	});
 });
 
-test("authorization endpoint should warn resource owner (user) about the incorrect redirect_uri", async ({
+test("/authorize endpoint should warn resource owner (user) about the incorrect redirect_uri", async ({
 	page,
 	baseURL,
 }) => {
@@ -209,7 +209,7 @@ test("authorization endpoint should warn resource owner (user) about the incorre
 	).toBeVisible();
 });
 
-test("authorization endpoint should warn resource owner (user) about the incorrect redirect_uri even if every other query param is missing", async ({
+test("/authorize endpoint should warn resource owner (user) about the incorrect redirect_uri even if every other query param is missing", async ({
 	page,
 	baseURL,
 }) => {
@@ -431,7 +431,7 @@ test("/authorize endpoint should redirect with access_denied error code if user 
 	});
 });
 
-test("/token endpoint should respond with 401 error if client credentials are invalid (no authorization)", async ({
+test("/token endpoint should respond with 401 error if client credentials are invalid (no authorization header)", async ({
 	page,
 	request,
 }) => {
@@ -545,8 +545,7 @@ test("/token endpoint should respond with 401 error if client credentials are in
 
 [
 	["redirect_uri", "invalid_grant"],
-	// TODO: PKCE verification
-	// ["code_verifier", "invalid_request"],
+	["code_verifier", "invalid_request"], // Requires working PKCE verification to pass.
 ].forEach(([parameter, expectedError]) => {
 	test(`/token endpoint should respond with 400 error code if ${parameter} parameter has unsupported value`, async ({
 		page,
@@ -594,11 +593,12 @@ test("/token endpoint should respond with 401 error if client credentials are in
 /**
  * TODO validation for POST /token tests:
  * + one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
- * - one of the parameters is of unsupported value: respond with 400 http status code, `error: invalid_request`
- * - one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
- * - redirect uri does not match: respond with 400 http status code, `error: invalid_grant`
+ * + redirect uri does not match: respond with 400 http status code, `error: invalid_grant`
+ * + code_verifier is of unsupported value: respond with 400 http status code, `error: invalid_request`
  * - unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
- * - authorization code is invalid or expired: respond with 400 http status code, `error: invalid_grant`
+ * - one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
+ * - authorization code is invalid: respond with 400 http status code, `error: invalid_grant`
+ * - authorization code is expired: respond with 400 http status code, `error: invalid_grant`
  * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
  */
 
@@ -622,13 +622,6 @@ async function getAuthorizationCodeFromRedirectUriQueryString(
 
 	return authorizationCode as string;
 }
-
-/**
- *
- * send user's cookies. These endpoints are "back channel", ie. they are not meant to be accessed by user's browser
- *
- * @see https://playwright.dev/docs/api/class-fixtures#fixtures-request
- */
 
 /**
  * Using the authorization code we received we request an access token from the authorization server.
