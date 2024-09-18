@@ -14,7 +14,6 @@ export interface AccessTokenRequestQueryParams {
 export default async function frontend(fastify: FastifyInstance) {
 	fastify.post<{ Body: AccessTokenRequestQueryParams }>("/token", async function (request, reply) {
 		// TODO validation of request.body params
-		// TODO validation of extractClientCredentials(request.headers.authorization)
 		const { code, code_verifier, grant_type, redirect_uri } = request.body;
 		const { clientId, clientSecret } = extractClientCredentials(request.headers.authorization);
 
@@ -25,7 +24,16 @@ export default async function frontend(fastify: FastifyInstance) {
 			return reply.code(401).header("www-authenticate", "Basic").send({ error: "invalid_client" });
 		}
 
-		if (!code || !code_verifier || !grant_type || !redirect_uri) {
+		if (
+			!code ||
+			!code_verifier ||
+			!grant_type ||
+			!redirect_uri ||
+			Array.isArray(code) ||
+			Array.isArray(grant_type) ||
+			Array.isArray(code_verifier) ||
+			Array.isArray(redirect_uri)
+		) {
 			return reply.code(400).send({ error: "invalid_request" });
 		}
 
