@@ -676,6 +676,45 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	expectTokenEndpointHeadersAreCorrect(response.headers());
 });
 
+test("/token endpoint should respond with 400 status code and unsupported_grant_type error if grant_type is of unknown value", async ({
+	page,
+	baseURL,
+	request,
+}) => {
+	await signInUser(page, "MarkS", "test");
+	const { id, redirectUri, secret } = await createTestClient(baseURL as string);
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+	await page.goto(
+		`/authorize?response_type=code&client_id=${id}&redirect_uri=${redirectUri}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+	);
+	// User approves the client.
+	await page.getByRole("button", { name: "Approve" }).click();
+	await page.waitForURL(/\/\?/);
+	const authorizationCode = await getAuthorizationCodeFromRedirectUriQueryString(page.url(), state);
+
+	const formParameters: any = {
+		// We send the wrong grant type.
+		grant_type: "client_credentials",
+		redirect_uri: redirectUri,
+		code: authorizationCode,
+		code_verifier: codeVerifier,
+	};
+
+	const response = await request.post("/api/v1/token", {
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+		},
+		form: formParameters,
+	});
+	expect(response.status()).toEqual(400);
+	expect(response.statusText()).toEqual("Bad Request");
+	expect(await response.json()).toEqual({ error: "unsupported_grant_type" });
+	expectTokenEndpointHeadersAreCorrect(response.headers());
+});
+
 /**
  * TODO validation for POST /token tests:
  * + one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
@@ -683,7 +722,7 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
  * + code_verifier is of unsupported value: respond with 400 http status code, `error: invalid_request`
  * + authorization code is invalid: respond with 400 http status code, `error: invalid_grant`
  * + authorization code matches client id: respond with 400 http status code, `error: invalid_grant`
- * - unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
+ * + unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
  * - one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
  * - authorization code is expired: respond with 400 http status code, `error: invalid_grant`
  * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again

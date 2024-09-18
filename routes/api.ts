@@ -29,6 +29,10 @@ export default async function frontend(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "invalid_request" });
 		}
 
+		if (grant_type !== "authorization_code") {
+			return reply.code(400).send({ error: "unsupported_grant_type" });
+		}
+
 		if (client.redirectUri !== redirect_uri) {
 			return reply.code(400).send({ error: "invalid_grant" });
 		}
