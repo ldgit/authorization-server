@@ -1,4 +1,5 @@
 import cryptoRandomString from "crypto-random-string";
+import { differenceInSeconds, isAfter } from "date-fns";
 import { query } from "../../database/database.js";
 
 export interface AuthorizationTokenData {
@@ -56,4 +57,12 @@ export async function getAuthorizationTokenByCode(
 		codeChallenge: tokenData.code_challenge,
 		codeChallengeMethod: tokenData.code_challenge_method,
 	};
+}
+
+export function hasAuthorizationTokenExpired(authorizationToken: AuthorizationTokenData): boolean {
+	if (isAfter(authorizationToken.createdAt, new Date())) {
+		return true;
+	}
+
+	return differenceInSeconds(new Date(), authorizationToken.createdAt) > 120;
 }

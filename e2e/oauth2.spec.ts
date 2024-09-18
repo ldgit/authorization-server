@@ -3,6 +3,7 @@ import { URL } from "node:url";
 import { type Page, expect, request, test } from "@playwright/test";
 import * as argon2 from "argon2";
 import cryptoRandomString from "crypto-random-string";
+import { subSeconds } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import {
 	DUMMY_CLIENT_ID,
@@ -763,6 +764,49 @@ test("/token endpoint should respond with 400 status code and unsupported_grant_
 	});
 });
 
+test("/token endpoint should respond with 400 status code and invalid_grant error if authorization code has expired", async ({
+	request,
+}) => {
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+
+	const userId = (await query("SELECT id FROM users WHERE username = $1", ["MarkS"])).rows[0].id;
+	const authorizationCode = "SdNo_I0y2U3yT1bp~v8Vr6wdfVAu_VubbJeClS309cGse-MCM4Pmq82V5FqaQbvG";
+	// Set up so the user has already approved the authorization request and we manually create the
+	// already *expired* authorization code.
+	await query(
+		"INSERT INTO authorization_tokens(created_at, value, scope, client_id, user_id, code_challenge, code_challenge_method) VALUES($1, $2, $3, $4, $5, $6, $7)",
+		[
+			subSeconds(new Date(), 121),
+			authorizationCode,
+			"openid",
+			DUMMY_CLIENT_ID,
+			userId,
+			codeChallenge,
+			"S256",
+		],
+	);
+
+	const formParameters: any = {
+		grant_type: "authorization_code",
+		redirect_uri: DUMMY_CLIENT_REDIRECT_URI,
+		code: authorizationCode,
+		code_verifier: codeVerifier,
+	};
+
+	const response = await request.post("/api/v1/token", {
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Authorization: `Basic ${btoa(`${DUMMY_CLIENT_ID}:${DUMMY_CLIENT_SECRET}`)}`,
+		},
+		form: formParameters,
+	});
+	expect(response.status()).toEqual(400);
+	expect(response.statusText()).toEqual("Bad Request");
+	expect(await response.json()).toEqual({ error: "invalid_grant" });
+	expectTokenEndpointHeadersAreCorrect(response.headers());
+});
+
 /**
  * TODO validation for POST /token tests:
  * + one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
@@ -772,7 +816,7 @@ test("/token endpoint should respond with 400 status code and unsupported_grant_
  * + authorization code matches client id: respond with 400 http status code, `error: invalid_grant`
  * + unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
  * + one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
- * - authorization code is expired: respond with 400 http status code, `error: invalid_grant`
+ * + authorization code is expired: respond with 400 http status code, `error: invalid_grant`
  * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
  */
 

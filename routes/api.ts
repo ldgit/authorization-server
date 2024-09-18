@@ -1,6 +1,9 @@
 import * as argon2 from "argon2";
 import type { FastifyInstance } from "fastify";
-import { getAuthorizationTokenByCode } from "../library/oauth2/authorizationToken.js";
+import {
+	getAuthorizationTokenByCode,
+	hasAuthorizationTokenExpired,
+} from "../library/oauth2/authorizationToken.js";
 import { extractClientCredentials, getClientById } from "../library/oauth2/client.js";
 import { verifyPkceCodeAgainstCodeChallenge } from "../library/oauth2/pkce.js";
 
@@ -46,7 +49,11 @@ export default async function frontend(fastify: FastifyInstance) {
 		}
 
 		const authorizationTokenData = await getAuthorizationTokenByCode(code);
-		if (authorizationTokenData === null || authorizationTokenData.clientId !== clientId) {
+		if (
+			authorizationTokenData === null ||
+			authorizationTokenData.clientId !== clientId ||
+			hasAuthorizationTokenExpired(authorizationTokenData)
+		) {
 			return reply.code(400).send({ error: "invalid_grant" });
 		}
 
