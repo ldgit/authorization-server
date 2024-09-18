@@ -771,7 +771,7 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
 
 	const userId = (await query("SELECT id FROM users WHERE username = $1", ["MarkS"])).rows[0].id;
-	const authorizationCode = "SdNo_I0y2U3yT1bp~v8Vr6wdfVAu_VubbJeClS309cGse-MCM4Pmq82V5FqaQbvG";
+	const authorizationCode = cryptoRandomString({ length: 64, characters: "alphanumeric" });
 	// Set up so the user has already approved the authorization request and we manually create the
 	// already *expired* authorization code.
 	await query(
