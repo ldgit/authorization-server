@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import cryptoRandomString from "crypto-random-string";
-import { addSeconds, differenceInMilliseconds, subSeconds } from "date-fns";
+import { addSeconds, differenceInSeconds, subSeconds } from "date-fns";
 import { describe, expect, it } from "vitest";
 import { DUMMY_CLIENT_ID } from "../../database/createDummyData.js";
 import { query } from "../../database/database.js";
@@ -27,7 +27,7 @@ describe("fetching authorization token from database by code", () => {
 			codeChallenge,
 			"S256",
 		);
-		const actualTokenCreationDate = new Date();
+		const expectedTokenCreationDate = new Date();
 
 		const token = (await getAuthorizationTokenByCode(code)) as AuthorizationTokenData;
 
@@ -38,7 +38,7 @@ describe("fetching authorization token from database by code", () => {
 		expect(token?.scope).toEqual("openid");
 		expect(token?.codeChallenge).toEqual(codeChallenge);
 		expect(token?.codeChallengeMethod).toEqual("S256");
-		expect(differenceInMilliseconds(token.createdAt, actualTokenCreationDate)).toBeLessThan(2);
+		expect(differenceInSeconds(token.createdAt, expectedTokenCreationDate)).toBeLessThan(2);
 	});
 });
 
