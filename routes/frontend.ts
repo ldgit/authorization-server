@@ -21,6 +21,7 @@ import {
 	clientExists,
 	isRedirectUriValid,
 } from "../library/oauth2/client.js";
+import { findUserByUsername } from "../library/user.js";
 import { validateNewUser } from "../library/validation.js";
 
 export interface AuthorizationRequestQueryParams extends ParsedUrlQueryInput {
@@ -146,21 +147,18 @@ export default async function frontend(fastify: FastifyInstance) {
 				return reply.redirect(loginErrorRouteWithQueryParameters);
 			}
 
-			const result = await query("SELECT id, username, password FROM users WHERE username = $1", [
-				username,
-			]);
-			if (result.rowCount !== 1) {
+			const userData = await findUserByUsername(username);
+			if (userData === null) {
 				return reply.redirect(loginErrorRouteWithQueryParameters);
 			}
 
-			const user = result.rows[0];
-			const passwordMatches = await argon2.verify(user.password as string, password);
+			const passwordMatches = await argon2.verify(userData.password as string, password);
 
 			if (!passwordMatches) {
 				return reply.redirect(loginErrorRouteWithQueryParameters);
 			}
 
-			await signInUser(user.id, reply.setCookie.bind(reply) as SetCookieHandler);
+			await signInUser(userData.id, reply.setCookie.bind(reply) as SetCookieHandler);
 
 			// If there are Oauth2 parameters in the query string redirect user back to /authorize endpoint
 			// so the user can approve or deny the authorization request.

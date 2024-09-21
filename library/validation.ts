@@ -1,5 +1,5 @@
-import { query } from "../database/database.js";
 import type { UserRegisterType } from "../routes/frontend.ts";
+import { findUserByUsername } from "./user.js";
 
 export interface ValidationError {
 	name?: string;
@@ -25,8 +25,7 @@ export async function validateNewUser(user: UserRegisterType): Promise<Validatio
 		errors.password = "Password must not be empty";
 	}
 
-	const userResult = await query("SELECT username FROM users WHERE username = $1", [user.username]);
-	if (userResult.rowCount !== 0) {
+	if ((await findUserByUsername(user.username)) !== null) {
 		errors.username = "Username already taken";
 	}
 

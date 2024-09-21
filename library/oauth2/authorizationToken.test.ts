@@ -4,6 +4,7 @@ import { addSeconds, differenceInSeconds, subSeconds } from "date-fns";
 import { describe, expect, it } from "vitest";
 import { DUMMY_CLIENT_ID } from "../../database/createDummyData.js";
 import { query } from "../../database/database.js";
+import { findUserByUsername } from "../user.js";
 import {
 	type AuthorizationTokenData,
 	createAuthorizationToken,
@@ -18,7 +19,7 @@ describe("fetching authorization token from database by code", () => {
 	});
 
 	it("if token with specified code is found, return its data", async () => {
-		const userId = (await query("SELECT id FROM users WHERE username = $1", ["HellyR"])).rows[0].id;
+		const userId = (await findUserByUsername("HellyR"))?.id as string;
 		const codeChallenge = createHash("sha256").update(generateCodeVerifier()).digest("base64url");
 		const code = await createAuthorizationToken(
 			DUMMY_CLIENT_ID,
@@ -45,8 +46,7 @@ describe("fetching authorization token from database by code", () => {
 describe("checking if authorization token has expired", () => {
 	[118, 54, 5, 0].forEach((seconds) => {
 		it(`should return false if token was created within ${seconds} from now`, async () => {
-			const userId = (await query("SELECT id FROM users WHERE username = $1", ["HellyR"])).rows[0]
-				.id;
+			const userId = (await findUserByUsername("HellyR"))?.id as string;
 			const codeChallenge = createHash("sha256").update(generateCodeVerifier()).digest("base64url");
 			const authorizationCode = cryptoRandomString({
 				length: 64,
@@ -75,7 +75,7 @@ describe("checking if authorization token has expired", () => {
 	});
 
 	it("should return true if token was created more than 2 minutes from now", async () => {
-		const userId = (await query("SELECT id FROM users WHERE username = $1", ["HellyR"])).rows[0].id;
+		const userId = (await findUserByUsername("HellyR"))?.id as string;
 		const codeChallenge = createHash("sha256").update(generateCodeVerifier()).digest("base64url");
 		const authorizationCode = cryptoRandomString({
 			length: 64,
@@ -104,8 +104,7 @@ describe("checking if authorization token has expired", () => {
 
 	[2, 15, 121, 10000000].forEach((seconds) => {
 		it(`should return true if token was created ${seconds} seconds in the future (?)`, async () => {
-			const userId = (await query("SELECT id FROM users WHERE username = $1", ["HellyR"])).rows[0]
-				.id;
+			const userId = (await findUserByUsername("HellyR"))?.id as string;
 			const codeChallenge = createHash("sha256").update(generateCodeVerifier()).digest("base64url");
 			const authorizationCode = cryptoRandomString({
 				length: 64,

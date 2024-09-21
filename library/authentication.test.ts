@@ -11,6 +11,7 @@ import {
 	signInUser,
 	signOut,
 } from "./authentication.js";
+import { type UserData, findUserById } from "./user.js";
 
 const passwordHash =
 	"$argon2id$v=19$m=65536,t=3,p=4$P5wGfnyG6tNP2iwvWPp9SA$Gp3wgJZC1xe6fVzUTMmqgCGgFPyZeCt1aXjUtlwSMmo";
@@ -112,13 +113,13 @@ describe("user authentication", () => {
 		});
 		userIds.push(userId);
 
-		const newUserResult = await query("SELECT * FROM users WHERE id = $1", [userId]);
+		const newUserData = (await findUserById(userId)) as UserData;
 
-		expect(newUserResult.rowCount).toEqual(1);
-		expect(newUserResult.rows[0].firstname).toEqual("Seth");
-		expect(newUserResult.rows[0].lastname).toEqual("Milchick");
-		expect(newUserResult.rows[0].username).toEqual("sMilchick");
-		const passwordMatches = await argon2.verify(newUserResult.rows[0].password, "a test");
+		expect(newUserData).not.toBeNull();
+		expect(newUserData.firstname).toEqual("Seth");
+		expect(newUserData.lastname).toEqual("Milchick");
+		expect(newUserData.username).toEqual("sMilchick");
+		const passwordMatches = await argon2.verify(newUserData.password, "a test");
 		expect(passwordMatches).toStrictEqual(true);
 	});
 

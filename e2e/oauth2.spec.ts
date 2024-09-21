@@ -658,7 +658,7 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	await page.waitForURL(/\/\?/);
 
 	// Create authorization token for the dummy client for the same user, to force a client check in production code.
-	const userId = (await query("SELECT id FROM users WHERE username = $1", ["MarkS"])).rows[0].id;
+	const userId = ((await findUserByUsername("MarkS")) as UserData).id;
 	const differentAuthCode = await createAuthorizationToken(
 		DUMMY_CLIENT_ID,
 		userId,
@@ -781,7 +781,7 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	const codeVerifier = generateCodeVerifier();
 	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
 
-	const userId = (await query("SELECT id FROM users WHERE username = $1", ["MarkS"])).rows[0].id;
+	const userId = ((await findUserByUsername("MarkS")) as UserData).id;
 	const authorizationCode = cryptoRandomString({ length: 64, characters: "alphanumeric" });
 	// Set up so the user has already approved the authorization request and we manually create the
 	// already *expired* authorization code.

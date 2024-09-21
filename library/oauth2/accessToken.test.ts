@@ -4,6 +4,7 @@ import { differenceInSeconds } from "date-fns";
 import { describe, expect, it } from "vitest";
 import { DUMMY_CLIENT_ID } from "../../database/createDummyData.js";
 import { query } from "../../database/database.js";
+import { findUserByUsername } from "../user.js";
 import {
 	type AccessTokenData,
 	createAccessTokenForAuthorizationCode,
@@ -19,7 +20,7 @@ describe("fetching access token from database by code", () => {
 	});
 
 	it("if token with specified code is found, return its data", async () => {
-		const userId = (await query("SELECT id FROM users WHERE username = $1", ["HellyR"])).rows[0].id;
+		const userId = (await findUserByUsername("HellyR"))?.id as string;
 		const codeChallenge = createHash("sha256")
 			.update(generateRandomString({ length: 64 }))
 			.digest("base64url");
@@ -51,7 +52,7 @@ describe("fetching access token from database by code", () => {
 
 describe("generating access token", () => {
 	it("generating access token should return freshly created token value, expiration info and scope", async () => {
-		const userId = (await query("SELECT id FROM users WHERE username = $1", ["HellyR"])).rows[0].id;
+		const userId = (await findUserByUsername("HellyR"))?.id as string;
 		const codeChallenge = createHash("sha256")
 			.update(generateRandomString({ length: 64 }))
 			.digest("base64url");
@@ -79,7 +80,7 @@ describe("generating access token", () => {
 	});
 
 	it("generating access token should throw error if provided authorization token is already tied to an access token", async () => {
-		const userId = (await query("SELECT id FROM users WHERE username = $1", ["HellyR"])).rows[0].id;
+		const userId = (await findUserByUsername("HellyR"))?.id as string;
 		const codeChallenge = createHash("sha256")
 			.update(generateRandomString({ length: 64 }))
 			.digest("base64url");
