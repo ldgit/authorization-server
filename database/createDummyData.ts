@@ -34,6 +34,8 @@ export async function createDummyData() {
 			hash = await argon2.hash(password);
 			await client.query(queryText, ["Irving", "Bailiff", "IrvingB", hash]);
 			console.log("Created user IrvingB");
+			await client.query(queryText, ["Dylan", "George", "DylanG", hash]);
+			console.log("Created user DylanG");
 			console.log('All users use same password: "test"');
 			console.log("---");
 

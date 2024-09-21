@@ -1,29 +1,36 @@
 import type { QueryResult } from "pg";
 import { v4 as uuidv4 } from "uuid";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { query, transactionQuery } from "./database.js";
 
 const passwordHash =
 	"$argon2id$v=19$m=65536,t=3,p=4$P5wGfnyG6tNP2iwvWPp9SA$Gp3wgJZC1xe6fVzUTMmqgCGgFPyZeCt1aXjUtlwSMmo";
 
 describe("database adapter", () => {
-	beforeAll(async () => {
-		await query("TRUNCATE users CASCADE");
+	const usersForCleanup: string[] = [];
+
+	afterEach(async () => {
+		for (const username of usersForCleanup) {
+			await query("DELETE FROM users WHERE username = $1", [username]);
+		}
 	});
 
 	it("should support storing and fetching data from database", async () => {
 		await query(
 			'INSERT INTO users(firstname, lastname, username, "password") VALUES($1, $2, $3, $4)',
-			["Mark", "Scout", "MarkS", passwordHash],
+			["Harmony", "Cobel", "HarmonyC", passwordHash],
 		);
+		usersForCleanup.push("HarmonyC");
+
 		const result = await query(
 			"SELECT firstname, lastname, username, password FROM users WHERE username = $1",
-			["MarkS"],
+			["HarmonyC"],
 		);
+
 		expect(result.rowCount).toEqual(1);
-		expect(result.rows[0].username).toEqual("MarkS");
-		expect(result.rows[0].firstname).toEqual("Mark");
-		expect(result.rows[0].lastname).toEqual("Scout");
+		expect(result.rows[0].username).toEqual("HarmonyC");
+		expect(result.rows[0].firstname).toEqual("Harmony");
+		expect(result.rows[0].lastname).toEqual("Cobel");
 		expect(result.rows[0].password).toEqual(passwordHash);
 	});
 
@@ -45,9 +52,10 @@ describe("database adapter", () => {
 			expectedUserId = uuidv4();
 			return await client.query(
 				'INSERT INTO users(id, firstname, lastname, username, "password") VALUES($1, $2, $3, $4, $5) RETURNING id',
-				[expectedUserId, "Helly", "Riggs", "HellyR", passwordHash],
+				[expectedUserId, "Seth", "Milchick", "SethM", passwordHash],
 			);
 		})) as QueryResult;
+		usersForCleanup.push("SethM");
 
 		expect(result.rowCount).toEqual(1);
 		expect(result.rows[0].id).toEqual(expectedUserId);

@@ -83,7 +83,7 @@ describe("user authentication", () => {
 		const userId = (
 			await query(
 				'INSERT INTO users(firstname, lastname, username, "password") VALUES($1, $2, $3, $4) RETURNING id',
-				["Dylan", "George", "DylanG", passwordHash],
+				["Harmony", "Cobel", "hCobel", passwordHash],
 			)
 		).rows[0].id as string;
 		userIds.push(userId);
@@ -97,9 +97,9 @@ describe("user authentication", () => {
 
 		expect(await getSignedInUser(request)).toEqual({
 			id: userId,
-			name: "Dylan",
-			surname: "George",
-			username: "DylanG",
+			name: "Harmony",
+			surname: "Cobel",
+			username: "hCobel",
 		});
 	});
 
