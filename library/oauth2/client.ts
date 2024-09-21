@@ -63,7 +63,7 @@ export function extractClientCredentials(authorizationHeader: string | undefined
 		return { clientId: "", clientSecret: "" };
 	}
 
-	const credentials = atob(base64EncodedCredentials);
+	const credentials = Buffer.from(base64EncodedCredentials, "base64").toString();
 	const [clientId, clientSecret] = credentials.split(":");
 
 	if (!clientSecret || !clientId) {

@@ -433,7 +433,7 @@ test("/authorize endpoint should redirect with access_denied error code if user 
 		const response = await request.post("/api/v1/token", {
 			headers: {
 				"Content-Type": "application/x-www-form-urlencoded",
-				Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+				Authorization: `Basic ${base64encode(`${id}:${secret}`)}`,
 			},
 			form: formParameters as any,
 		});
@@ -498,7 +498,7 @@ test("/token endpoint should respond with 401 error if client credentials are in
 	const response = await request.post("/api/v1/token", {
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
-			Authorization: `Basic ${btoa(`${differentClient.id}:${DUMMY_CLIENT_SECRET}`)}`,
+			Authorization: `Basic ${base64encode(`${differentClient.id}:${DUMMY_CLIENT_SECRET}`)}`,
 		},
 		form: {
 			grant_type: "authorization_code",
@@ -539,7 +539,7 @@ test("/token endpoint should respond with 401 error if client credentials are in
 		const response = await request.post("/api/v1/token", {
 			headers: {
 				"Content-Type": "application/x-www-form-urlencoded",
-				Authorization: `Basic ${btoa(`${client.id}:${client.secret}`)}`,
+				Authorization: `Basic ${base64encode(`${client.id}:${client.secret}`)}`,
 			},
 			form: {
 				grant_type: "authorization_code",
@@ -592,7 +592,7 @@ test("/token endpoint should respond with 401 error if client credentials are in
 		const response = await request.post("/api/v1/token", {
 			headers: {
 				"Content-Type": "application/x-www-form-urlencoded",
-				Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+				Authorization: `Basic ${base64encode(`${id}:${secret}`)}`,
 			},
 			form: formParameters,
 		});
@@ -630,7 +630,7 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	const response = await request.post("/api/v1/token", {
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
-			Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+			Authorization: `Basic ${base64encode(`${id}:${secret}`)}`,
 		},
 		form: formParameters,
 	});
@@ -678,7 +678,7 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	const response = await request.post("/api/v1/token", {
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
-			Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+			Authorization: `Basic ${base64encode(`${id}:${secret}`)}`,
 		},
 		form: formParameters,
 	});
@@ -717,7 +717,7 @@ test("/token endpoint should respond with 400 status code and unsupported_grant_
 	const response = await request.post("/api/v1/token", {
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
-			Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+			Authorization: `Basic ${base64encode(`${id}:${secret}`)}`,
 		},
 		form: formParameters,
 	});
@@ -764,7 +764,7 @@ test("/token endpoint should respond with 400 status code and unsupported_grant_
 		const response = await request.post("/api/v1/token", {
 			headers: {
 				"Content-Type": "application/x-www-form-urlencoded",
-				Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
+				Authorization: `Basic ${base64encode(`${id}:${secret}`)}`,
 			},
 			data: formString,
 		});
@@ -808,7 +808,7 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	const response = await request.post("/api/v1/token", {
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
-			Authorization: `Basic ${btoa(`${DUMMY_CLIENT_ID}:${DUMMY_CLIENT_SECRET}`)}`,
+			Authorization: `Basic ${base64encode(`${DUMMY_CLIENT_ID}:${DUMMY_CLIENT_SECRET}`)}`,
 		},
 		form: formParameters,
 	});
@@ -903,7 +903,7 @@ async function requestAccessToken({
 	return await apiRequest.post("/api/v1/token", {
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
-			Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+			Authorization: `Basic ${base64encode(`${clientId}:${clientSecret}`)}`,
 		},
 		form: {
 			grant_type: "authorization_code",

@@ -22,7 +22,7 @@ describe("client authentication", () => {
 
 	it("extractClientCredentials should extract client credentials from an authorization request header", () => {
 		const clientCredentials = extractClientCredentials(
-			`Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+			`Basic ${base64Encode(`${clientId}:${clientSecret}`)}`,
 		);
 
 		expect(clientCredentials).toEqual({
@@ -35,13 +35,22 @@ describe("client authentication", () => {
 	const clientSecret = "eqCwSoGkm2Uo0WgzjyKGJSrHHApYuljEv1ceEBeMoF8d";
 	for (const [description, authorizationHeader] of new Map([
 		[
-			"Bearer ${btoa(`${clientId}:${clientSecret}`)}",
-			`Bearer ${btoa(`${clientId}:${clientSecret}`)}`,
+			"Bearer ${base64Encode(`${clientId}:${clientSecret}`)}",
+			`Bearer ${base64Encode(`${clientId}:${clientSecret}`)}`,
 		],
-		["Basic${btoa(`${clientId}:${clientSecret}`)}", `Basic${btoa(`${clientId}:${clientSecret}`)}`],
-		["Basic ${btoa(`${clientId}${clientSecret}`)}", `Basic ${btoa(`${clientId}${clientSecret}`)}`],
-		["Basic ${btoa(`:${clientSecret}`)}", `Basic ${btoa(`:${clientSecret}`)}`],
-		["${btoa(`${clientId}:${clientSecret}`)}`)}", `${btoa(`${clientId}:${clientSecret}`)}`],
+		[
+			"Basic${base64Encode(`${clientId}:${clientSecret}`)}",
+			`Basic${base64Encode(`${clientId}:${clientSecret}`)}`,
+		],
+		[
+			"Basic ${base64Encode(`${clientId}${clientSecret}`)}",
+			`Basic ${base64Encode(`${clientId}${clientSecret}`)}`,
+		],
+		["Basic ${base64Encode(`:${clientSecret}`)}", `Basic ${base64Encode(`:${clientSecret}`)}`],
+		[
+			"${base64Encode(`${clientId}:${clientSecret}`)}`)}",
+			`${base64Encode(`${clientId}:${clientSecret}`)}`,
+		],
 		["undefined", undefined],
 	])) {
 		it(`extractClientCredentials should return empty object if authorization header is invalid (${description})`, () => {
@@ -114,3 +123,7 @@ describe("attachErrorInformationToRedirectUri", () => {
 		});
 	});
 });
+
+function base64Encode(text: string): string {
+	return Buffer.from(text).toString("base64");
+}
