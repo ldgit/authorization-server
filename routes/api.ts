@@ -1,11 +1,17 @@
 import * as argon2 from "argon2";
 import type { FastifyInstance } from "fastify";
 import {
+	createAccessTokenForAuthorizationCode,
+	extractAccessTokenFromHeader,
+	findAccessTokenByValue,
+} from "../library/oauth2/accessToken.js";
+import {
 	getAuthorizationTokenByCode,
 	hasAuthorizationTokenExpired,
 } from "../library/oauth2/authorizationToken.js";
 import { extractClientCredentials, getClientById } from "../library/oauth2/client.js";
 import { verifyPkceCodeAgainstCodeChallenge } from "../library/oauth2/pkce.js";
+import { findUserById } from "../library/user.js";
 
 export interface AccessTokenRequestQueryParams {
 	grant_type: "authorization_code";
@@ -14,9 +20,9 @@ export interface AccessTokenRequestQueryParams {
 	code_verifier: string;
 }
 
+// biome-ignore lint/suspicious/useAwait: Fastify requires this to return a Promise to run.
 export default async function frontend(fastify: FastifyInstance) {
 	fastify.post<{ Body: AccessTokenRequestQueryParams }>("/token", async function (request, reply) {
-		// TODO validation of request.body params
 		const { code, code_verifier, grant_type, redirect_uri } = request.body;
 		const { clientId, clientSecret } = extractClientCredentials(request.headers.authorization);
 
@@ -61,17 +67,35 @@ export default async function frontend(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "invalid_request" });
 		}
 
+		const { value, scope, expiresIn } = await createAccessTokenForAuthorizationCode(code);
+
 		return reply.send({
-			access_token: "TODO GENERATE ME RANDOMLY",
+			access_token: value,
 			token_type: "Bearer",
-			// 24 hours.
-			expires_in: 86400,
-			scope: "basic_info",
+			expires_in: expiresIn,
+			scope,
 		});
 	});
 
-	fastify.post("/userinfo", function (request, reply) {
-		// TODO get actual userinfo using the provided access token
-		return reply.send({ username: "MarkS", name: "Mark", surname: "Scout" });
+	fastify.post("/userinfo", async function (request, reply) {
+		if (!request.headers.authorization) {
+			return reply.code(401).header("www-authenticate", "Bearer").send();
+		}
+
+		const accessToken = extractAccessTokenFromHeader(request.headers.authorization);
+		const accessTokenData = await findAccessTokenByValue(accessToken);
+
+		if (accessTokenData === null) {
+			return reply.code(401).header("www-authenticate", "Bearer").send({ error: "invalid_token" });
+		}
+
+		const userData = await findUserById(accessTokenData.userId);
+
+		return reply.send({
+			sub: userData?.id,
+			given_name: userData?.firstname,
+			family_name: userData?.lastname,
+			preferred_username: userData?.username,
+		});
 	});
 }

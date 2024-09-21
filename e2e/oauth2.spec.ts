@@ -12,6 +12,7 @@ import {
 } from "../database/createDummyData.js";
 import { query } from "../database/database.js";
 import { createAuthorizationToken } from "../library/oauth2/authorizationToken.js";
+import { type UserData, findUserByUsername } from "../library/user.js";
 import type { AccessTokenRequestQueryParams } from "../routes/api.js";
 
 async function createTestClient(baseURL: string) {
@@ -106,12 +107,17 @@ test("oauth2 flow happy path", async ({ page, baseURL }) => {
 	const responseJson = await response.json();
 	assertAccessTokenResponseFollowsSpecs(responseJson, await response.headers());
 
-	await assertUserinfoEndpointWorks(responseJson.access_token);
+	await assertUserinfoEndpointWorks(responseJson.access_token, {
+		sub: await getUserIdFromUsername("MarkS"),
+		preferred_username: "MarkS",
+		given_name: "Mark",
+		family_name: "Scout",
+	});
 });
 
 test("oauth2 flow happy path when the user is already signed in", async ({ page, baseURL }) => {
 	// Sign in the user first.
-	await signInUser(page, "MarkS", "test");
+	await signInUser(page, "IrvingB", "test");
 
 	const { id, name, redirectUri, secret } = await createTestClient(baseURL as string);
 	const codeVerifier = generateCodeVerifier();
@@ -148,7 +154,12 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 	const responseJson = await response.json();
 	assertAccessTokenResponseFollowsSpecs(responseJson, await response.headers());
 
-	await assertUserinfoEndpointWorks(responseJson.access_token);
+	await assertUserinfoEndpointWorks(responseJson.access_token, {
+		sub: await getUserIdFromUsername("IrvingB"),
+		preferred_username: "IrvingB",
+		given_name: "Irving",
+		family_name: "Bailiff",
+	});
 });
 
 ["", "0054478d-431c-4e21-bc48-ffb4c3eb2ac0"].forEach((notAClientId) => {
@@ -172,7 +183,7 @@ test("oauth2 flow happy path when the user is already signed in", async ({ page,
 		).toBeVisible();
 	});
 
-	test(`authorization endpoint should should warn resource owner (user) if client doesn't exists (${notAClientId}) even if other parameters are missing`, async ({
+	test(`/authorize endpoint should should warn resource owner (user) if client doesn't exists (${notAClientId}) even if other parameters are missing`, async ({
 		page,
 	}) => {
 		await page.goto(`/authorize?client_id=${notAClientId}&redirect_uri=https://www.google.com`);
@@ -807,6 +818,37 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	expectTokenEndpointHeadersAreCorrect(response.headers());
 });
 
+test("/userinfo endpoint should respond with 401 error code if access token is invalid", async ({
+	request,
+}) => {
+	const invalidAccessToken = cryptoRandomString({
+		length: 64,
+		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
+	});
+
+	const response = await request.post("/api/v1/userinfo", {
+		headers: { Authorization: `Bearer ${base64encode(invalidAccessToken)}` },
+	});
+
+	expect(response.status()).toEqual(401);
+	expect(response.statusText()).toEqual("Unauthorized");
+	expect(response.headers()["www-authenticate"]).toEqual("Bearer");
+	expect(await response.json()).toEqual({ error: "invalid_token" });
+});
+
+test("/userinfo endpoint should respond with 401 error code if no authentication is provided", async ({
+	request,
+}) => {
+	const response = await request.post("/api/v1/userinfo");
+
+	expect(response.status()).toEqual(401);
+	expect(response.statusText()).toEqual("Unauthorized");
+	expect(response.headers()["www-authenticate"]).toEqual("Bearer");
+	expect(await response.text()).toEqual("");
+});
+
+test.skip("/userinfo endpoint should respond with 401 error code if access token has expired", () => {});
+
 /**
  * TODO validation for POST /token tests:
  * + one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
@@ -881,7 +923,7 @@ function assertAccessTokenResponseFollowsSpecs(responseJson: any, headers: any) 
 	expect(responseJson.access_token).not.toBeFalsy();
 	expect(responseJson.token_type).toEqual("Bearer");
 	expect(responseJson.expires_in).toEqual(86400);
-	expect(responseJson.scope).toEqual("basic_info");
+	expect(responseJson.scope).toEqual("openid");
 	expectTokenEndpointHeadersAreCorrect(headers);
 }
 
@@ -895,18 +937,22 @@ function expectTokenEndpointHeadersAreCorrect(headers: any) {
  * @see https://playwright.dev/docs/api-testing#using-request-context We deliberately create new request context
  * so we don't accidentally send user's session cookie in the API request.
  */
-async function assertUserinfoEndpointWorks(accessToken: string) {
+async function assertUserinfoEndpointWorks(accessToken: string, expectedUserData: any) {
 	const apiRequest = await request.newContext();
 	/**
 	 * Using the access token fetch basic user info from the resource server.
 	 */
 	const resourceResponse = await apiRequest.post("/api/v1/userinfo", {
-		headers: { Authorization: `Bearer ${accessToken}` },
+		headers: { Authorization: `Bearer ${base64encode(accessToken)}` },
 	});
 	expect(resourceResponse.ok()).toBeTruthy();
-	await expect(await resourceResponse.json()).toEqual({
-		username: "MarkS",
-		name: "Mark",
-		surname: "Scout",
-	});
+	await expect(await resourceResponse.json()).toEqual(expectedUserData);
+}
+
+function base64encode(text: string): string {
+	return Buffer.from(text).toString("base64");
+}
+
+async function getUserIdFromUsername(username: string): Promise<string> {
+	return ((await findUserByUsername(username)) as UserData)?.id;
 }
