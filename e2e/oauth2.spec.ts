@@ -472,7 +472,7 @@ test("/token endpoint should respond with 401 error if client credentials are in
 	});
 	expect(response.status()).toEqual(401);
 	expect(response.statusText()).toEqual("Unauthorized");
-	expect(response.headers()["www-authenticate"]).toEqual("Basic");
+	expect(response.headers()["www-authenticate"]).toEqual('Basic realm="Client authentication"');
 	expect(await response.json()).toEqual({ error: "invalid_client" });
 	expectTokenEndpointHeadersAreCorrect(response.headers());
 });
@@ -509,7 +509,7 @@ test("/token endpoint should respond with 401 error if client credentials are in
 	});
 	expect(response.status()).toEqual(401);
 	expect(response.statusText()).toEqual("Unauthorized");
-	expect(response.headers()["www-authenticate"]).toEqual("Basic");
+	expect(response.headers()["www-authenticate"]).toEqual('Basic realm="Client authentication"');
 	expect(await response.json()).toEqual({ error: "invalid_client" });
 	expectTokenEndpointHeadersAreCorrect(response.headers());
 });
@@ -550,7 +550,7 @@ test("/token endpoint should respond with 401 error if client credentials are in
 		});
 		expect(response.status()).toEqual(401);
 		expect(response.statusText()).toEqual("Unauthorized");
-		expect(response.headers()["www-authenticate"]).toEqual("Basic");
+		expect(response.headers()["www-authenticate"]).toEqual('Basic realm="Client authentication"');
 		expect(await response.json()).toEqual({ error: "invalid_client" });
 		expectTokenEndpointHeadersAreCorrect(response.headers());
 	});

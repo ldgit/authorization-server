@@ -30,7 +30,10 @@ export default async function frontend(fastify: FastifyInstance) {
 		const client = await getClientById(clientId);
 
 		if (!client || !(await argon2.verify(client.secret, clientSecret))) {
-			return reply.code(401).header("www-authenticate", "Basic").send({ error: "invalid_client" });
+			return reply
+				.code(401)
+				.header("www-authenticate", 'Basic realm="Client authentication"')
+				.send({ error: "invalid_client" });
 		}
 
 		if (
