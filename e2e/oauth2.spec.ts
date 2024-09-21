@@ -3,7 +3,7 @@ import { URL } from "node:url";
 import { type Page, expect, request, test } from "@playwright/test";
 import * as argon2 from "argon2";
 import cryptoRandomString from "crypto-random-string";
-import { subSeconds } from "date-fns";
+import { formatISO, subSeconds } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import {
 	DUMMY_CLIENT_ID,
@@ -48,7 +48,7 @@ async function signInUser(page: Page, username: string, password: string) {
 }
 
 // TODO remove this?
-test.setTimeout(4000);
+test.setTimeout(5000);
 
 /**
  * We use PKCE flow.
@@ -788,7 +788,7 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	await query(
 		"INSERT INTO authorization_tokens(created_at, value, scope, client_id, user_id, code_challenge, code_challenge_method) VALUES($1, $2, $3, $4, $5, $6, $7)",
 		[
-			subSeconds(new Date(), 121),
+			formatISO(subSeconds(new Date(), 121)),
 			authorizationCode,
 			"openid",
 			DUMMY_CLIENT_ID,

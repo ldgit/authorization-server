@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import cryptoRandomString from "crypto-random-string";
-import { addSeconds, differenceInSeconds, subSeconds } from "date-fns";
+import { addSeconds, differenceInSeconds, formatISO, subSeconds } from "date-fns";
 import { describe, expect, it } from "vitest";
 import { DUMMY_CLIENT_ID } from "../../database/createDummyData.js";
 import { query } from "../../database/database.js";
@@ -56,7 +56,7 @@ describe("checking if authorization token has expired", () => {
 			await query(
 				"INSERT INTO authorization_tokens(created_at, value, scope, client_id, user_id, code_challenge, code_challenge_method) VALUES($1, $2, $3, $4, $5, $6, $7)",
 				[
-					subSeconds(new Date(), seconds),
+					formatISO(subSeconds(new Date(), seconds)),
 					authorizationCode,
 					"openid",
 					DUMMY_CLIENT_ID,
@@ -85,7 +85,7 @@ describe("checking if authorization token has expired", () => {
 		await query(
 			"INSERT INTO authorization_tokens(created_at, value, scope, client_id, user_id, code_challenge, code_challenge_method) VALUES($1, $2, $3, $4, $5, $6, $7)",
 			[
-				subSeconds(new Date(), 121),
+				formatISO(subSeconds(new Date(), 121)),
 				authorizationCode,
 				"openid",
 				DUMMY_CLIENT_ID,
@@ -114,7 +114,7 @@ describe("checking if authorization token has expired", () => {
 			await query(
 				"INSERT INTO authorization_tokens(created_at, value, scope, client_id, user_id, code_challenge, code_challenge_method) VALUES($1, $2, $3, $4, $5, $6, $7)",
 				[
-					addSeconds(new Date(), seconds),
+					formatISO(addSeconds(new Date(), seconds)),
 					authorizationCode,
 					"openid",
 					DUMMY_CLIENT_ID,
