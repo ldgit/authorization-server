@@ -3,7 +3,7 @@ import { URL } from "node:url";
 import { type Page, expect, request, test } from "@playwright/test";
 import * as argon2 from "argon2";
 import cryptoRandomString from "crypto-random-string";
-import { formatISO, subSeconds } from "date-fns";
+import { formatISO, subHours, subSeconds } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import {
 	DUMMY_CLIENT_ID,
@@ -11,6 +11,7 @@ import {
 	DUMMY_CLIENT_SECRET,
 } from "../database/createDummyData.js";
 import { query } from "../database/database.js";
+import { createAccessTokenForAuthorizationCode } from "../library/oauth2/accessToken.js";
 import { createAuthorizationToken } from "../library/oauth2/authorizationToken.js";
 import { type UserData, findUserByUsername } from "../library/user.js";
 import type { AccessTokenRequestQueryParams } from "../routes/api.js";
@@ -847,7 +848,47 @@ test("/userinfo endpoint should respond with 401 error code if no authentication
 	expect(await response.text()).toEqual("");
 });
 
-test.skip("/userinfo endpoint should respond with 401 error code if access token has expired", () => {});
+test("/userinfo endpoint should respond with 401 error code if access token has expired", async ({
+	request,
+}) => {
+	const user = (await findUserByUsername("DylanG")) as UserData;
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const authorizationCode = await createAuthorizationToken(
+		DUMMY_CLIENT_ID,
+		user?.id,
+		"openid",
+		codeChallenge,
+		"S256",
+	);
+	const { value: accessToken } = await createAccessTokenForAuthorizationCode(authorizationCode);
+
+	// First test that endpoint still works minutes before expiration.
+	await query("UPDATE access_tokens SET created_at = $1 WHERE value = $2", [
+		formatISO(subHours(new Date(), 23.95)),
+		accessToken,
+	]);
+	await assertUserinfoEndpointWorks(accessToken, {
+		sub: user.id,
+		preferred_username: user.username,
+		given_name: user.firstname,
+		family_name: user.lastname,
+	});
+
+	// Now test that endpoint still returns 401 because access token has expired.
+	await query("UPDATE access_tokens SET created_at = $1 WHERE value = $2", [
+		formatISO(subHours(new Date(), 24.05)),
+		accessToken,
+	]);
+	const response = await request.post("/api/v1/userinfo", {
+		headers: { Authorization: `Bearer ${base64encode(accessToken)}` },
+	});
+
+	expect(response.status()).toEqual(401);
+	expect(response.statusText()).toEqual("Unauthorized");
+	expect(response.headers()["www-authenticate"]).toEqual("Bearer");
+	expect(await response.json()).toEqual({ error: "invalid_token" });
+});
 
 /**
  * TODO validation for POST /token tests:
@@ -859,7 +900,7 @@ test.skip("/userinfo endpoint should respond with 401 error code if access token
  * + unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
  * + one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
  * + authorization code is expired: respond with 400 http status code, `error: invalid_grant`
- * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
+ * + if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
  */
 
 function generateCodeVerifier() {
@@ -945,6 +986,7 @@ async function assertUserinfoEndpointWorks(accessToken: string, expectedUserData
 	const resourceResponse = await apiRequest.post("/api/v1/userinfo", {
 		headers: { Authorization: `Bearer ${base64encode(accessToken)}` },
 	});
+	expect(resourceResponse.status()).toEqual(200);
 	expect(resourceResponse.ok()).toBeTruthy();
 	await expect(await resourceResponse.json()).toEqual(expectedUserData);
 }

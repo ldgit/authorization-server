@@ -1,4 +1,5 @@
 import cryptoRandomString from "crypto-random-string";
+import { addSeconds, isFuture } from "date-fns";
 import { query } from "../../database/database.js";
 import { getAuthorizationTokenByCode } from "./authorizationToken.js";
 
@@ -85,4 +86,8 @@ export function extractAccessTokenFromHeader(authorizationHeader: string): strin
 	const accessToken = Buffer.from(encodedAccessToken, "base64").toString();
 
 	return accessToken;
+}
+
+export function hasTokenExpired(accessTokenData: AccessTokenData): boolean {
+	return !isFuture(addSeconds(accessTokenData.createdAt, accessTokenData.expiresIn));
 }

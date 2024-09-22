@@ -4,6 +4,7 @@ import {
 	createAccessTokenForAuthorizationCode,
 	extractAccessTokenFromHeader,
 	findAccessTokenByValue,
+	hasTokenExpired,
 } from "../library/oauth2/accessToken.js";
 import {
 	getAuthorizationTokenByCode,
@@ -88,7 +89,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		const accessToken = extractAccessTokenFromHeader(request.headers.authorization);
 		const accessTokenData = await findAccessTokenByValue(accessToken);
 
-		if (accessTokenData === null) {
+		if (accessTokenData === null || hasTokenExpired(accessTokenData)) {
 			return reply.code(401).header("www-authenticate", "Bearer").send({ error: "invalid_token" });
 		}
 

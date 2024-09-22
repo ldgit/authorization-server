@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import cryptoRandomString from "crypto-random-string";
-import { differenceInSeconds } from "date-fns";
+import { differenceInSeconds, subHours } from "date-fns";
 import { describe, expect, it } from "vitest";
 import { DUMMY_CLIENT_ID } from "../../database/createDummyData.js";
 import { query } from "../../database/database.js";
@@ -10,6 +10,7 @@ import {
 	createAccessTokenForAuthorizationCode,
 	extractAccessTokenFromHeader,
 	findAccessTokenByValue,
+	hasTokenExpired,
 } from "./accessToken.js";
 import { createAuthorizationToken } from "./authorizationToken.js";
 
@@ -115,6 +116,55 @@ describe("extractAccessTokenFromHeader should extract and base64 decode the head
 			});
 		},
 	);
+});
+
+describe("hasTokenExpired", () => {
+	const notRelevantData = {
+		id: 1,
+		authorizationTokenId: 2,
+		clientId: DUMMY_CLIENT_ID,
+		scope: "openid",
+		userId: "cd913d98-49cd-44e6-b414-86971b6b6385",
+		value: "not-important",
+	};
+
+	it("should return true if token has expired", () => {
+		expect(
+			hasTokenExpired({
+				expiresIn: 86400,
+				createdAt: subHours(new Date(), 24.01),
+				...notRelevantData,
+			}),
+		).toStrictEqual(true);
+
+		expect(
+			hasTokenExpired({
+				// 1 hour
+				expiresIn: 3600,
+				createdAt: subHours(new Date(), 1.01),
+				...notRelevantData,
+			}),
+		).toStrictEqual(true);
+	});
+
+	it("should return false if token has not expired", () => {
+		expect(
+			hasTokenExpired({
+				expiresIn: 86400,
+				createdAt: subHours(new Date(), 23.99),
+				...notRelevantData,
+			}),
+		).toStrictEqual(false);
+
+		expect(
+			hasTokenExpired({
+				// 1 hour
+				expiresIn: 3600,
+				createdAt: subHours(new Date(), 0.99),
+				...notRelevantData,
+			}),
+		).toStrictEqual(false);
+	});
 });
 
 function base64encode(text: string): string {
