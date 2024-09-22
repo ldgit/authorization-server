@@ -81,7 +81,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		});
 	});
 
-	fastify.post("/userinfo", async function (request, reply) {
+	fastify.get("/userinfo", async function (request, reply) {
 		if (!request.headers.authorization) {
 			return reply.code(401).header("www-authenticate", "Bearer").send();
 		}

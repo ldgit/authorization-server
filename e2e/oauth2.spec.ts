@@ -827,7 +827,7 @@ test("/userinfo endpoint should respond with 401 error code if access token is i
 		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
 	});
 
-	const response = await request.post("/api/v1/userinfo", {
+	const response = await request.get("/api/v1/userinfo", {
 		headers: { Authorization: `Bearer ${base64encode(invalidAccessToken)}` },
 	});
 
@@ -840,7 +840,7 @@ test("/userinfo endpoint should respond with 401 error code if access token is i
 test("/userinfo endpoint should respond with 401 error code if no authentication is provided", async ({
 	request,
 }) => {
-	const response = await request.post("/api/v1/userinfo");
+	const response = await request.get("/api/v1/userinfo");
 
 	expect(response.status()).toEqual(401);
 	expect(response.statusText()).toEqual("Unauthorized");
@@ -880,7 +880,7 @@ test("/userinfo endpoint should respond with 401 error code if access token has 
 		formatISO(subHours(new Date(), 24.05)),
 		accessToken,
 	]);
-	const response = await request.post("/api/v1/userinfo", {
+	const response = await request.get("/api/v1/userinfo", {
 		headers: { Authorization: `Bearer ${base64encode(accessToken)}` },
 	});
 
@@ -983,7 +983,7 @@ async function assertUserinfoEndpointWorks(accessToken: string, expectedUserData
 	/**
 	 * Using the access token fetch basic user info from the resource server.
 	 */
-	const resourceResponse = await apiRequest.post("/api/v1/userinfo", {
+	const resourceResponse = await apiRequest.get("/api/v1/userinfo", {
 		headers: { Authorization: `Bearer ${base64encode(accessToken)}` },
 	});
 	expect(resourceResponse.status()).toEqual(200);
