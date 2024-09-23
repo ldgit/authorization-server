@@ -7,7 +7,7 @@ import {
 	hasTokenExpired,
 } from "../library/oauth2/accessToken.js";
 import {
-	getAuthorizationTokenByCode,
+	findAuthorizationTokenByCode,
 	hasAuthorizationTokenExpired,
 } from "../library/oauth2/authorizationToken.js";
 import { extractClientCredentials, getClientById } from "../library/oauth2/client.js";
@@ -58,7 +58,7 @@ export default async function frontend(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "invalid_grant" });
 		}
 
-		const authorizationTokenData = await getAuthorizationTokenByCode(code);
+		const authorizationTokenData = await findAuthorizationTokenByCode(code);
 		if (
 			authorizationTokenData === null ||
 			authorizationTokenData.clientId !== clientId ||

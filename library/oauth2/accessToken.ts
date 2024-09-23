@@ -1,7 +1,7 @@
 import cryptoRandomString from "crypto-random-string";
 import { addSeconds, isFuture } from "date-fns";
 import { query } from "../../database/database.js";
-import { getAuthorizationTokenByCode } from "./authorizationToken.js";
+import { findAuthorizationTokenByCode } from "./authorizationToken.js";
 
 export interface AccessTokenData {
 	id: number;
@@ -26,7 +26,7 @@ export async function createAccessTokenForAuthorizationCode(
 		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
 	});
 
-	const authorizationTokenData = await getAuthorizationTokenByCode(authorizationToken);
+	const authorizationTokenData = await findAuthorizationTokenByCode(authorizationToken);
 	if (!authorizationTokenData) {
 		throw new Error("Authorization code not found.");
 	}

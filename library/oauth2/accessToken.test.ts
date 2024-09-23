@@ -25,13 +25,11 @@ describe("fetching access token from database by code", () => {
 		const codeChallenge = createHash("sha256")
 			.update(generateRandomString({ length: 64 }))
 			.digest("base64url");
-		const authorizationToken = await createAuthorizationToken(
-			DUMMY_CLIENT_ID,
+		const authorizationToken = await createAuthorizationToken({
+			clientId: DUMMY_CLIENT_ID,
 			userId,
-			"openid",
 			codeChallenge,
-			"S256",
-		);
+		});
 		const accessToken = await createAccessTokenForAuthorizationCode(authorizationToken);
 		const expectedTokenCreationDate = new Date();
 
@@ -57,13 +55,11 @@ describe("generating access token", () => {
 		const codeChallenge = createHash("sha256")
 			.update(generateRandomString({ length: 64 }))
 			.digest("base64url");
-		const authorizationToken = await createAuthorizationToken(
-			DUMMY_CLIENT_ID,
+		const authorizationToken = await createAuthorizationToken({
+			clientId: DUMMY_CLIENT_ID,
 			userId,
-			"openid",
 			codeChallenge,
-			"S256",
-		);
+		});
 
 		const { value, scope, expiresIn } =
 			await createAccessTokenForAuthorizationCode(authorizationToken);
@@ -85,13 +81,11 @@ describe("generating access token", () => {
 		const codeChallenge = createHash("sha256")
 			.update(generateRandomString({ length: 64 }))
 			.digest("base64url");
-		const authorizationToken = await createAuthorizationToken(
-			DUMMY_CLIENT_ID,
+		const authorizationToken = await createAuthorizationToken({
+			clientId: DUMMY_CLIENT_ID,
 			userId,
-			"openid",
 			codeChallenge,
-			"S256",
-		);
+		});
 
 		await createAccessTokenForAuthorizationCode(authorizationToken);
 

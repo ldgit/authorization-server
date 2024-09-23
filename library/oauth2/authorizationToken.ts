@@ -13,13 +13,23 @@ export interface AuthorizationTokenData {
 	codeChallengeMethod: string;
 }
 
-export async function createAuthorizationToken(
-	clientId: string,
-	userId: string,
-	scope: string,
-	codeChallenge: string,
-	codeChallengeMethod: string,
-): Promise<string> {
+interface CreateAuthorizationTokenArguments {
+	clientId: string;
+	userId: string;
+	/** Defaults to "openid". */
+	scope?: string;
+	codeChallenge: string;
+	/** Defaults to "S256". */
+	codeChallengeMethod?: string;
+}
+
+export async function createAuthorizationToken({
+	clientId,
+	userId,
+	scope = "openid",
+	codeChallenge,
+	codeChallengeMethod = "S256",
+}: CreateAuthorizationTokenArguments): Promise<string> {
 	const authorizationCode = cryptoRandomString({
 		length: 64,
 		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
@@ -33,7 +43,7 @@ export async function createAuthorizationToken(
 	return authorizationCode;
 }
 
-export async function getAuthorizationTokenByCode(
+export async function findAuthorizationTokenByCode(
 	code: string,
 ): Promise<AuthorizationTokenData | null> {
 	const result = await query(

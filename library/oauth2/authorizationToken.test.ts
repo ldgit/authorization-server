@@ -8,29 +8,27 @@ import { findUserByUsername } from "../user.js";
 import {
 	type AuthorizationTokenData,
 	createAuthorizationToken,
-	getAuthorizationTokenByCode,
+	findAuthorizationTokenByCode,
 	hasAuthorizationTokenExpired,
 } from "./authorizationToken.js";
 
 describe("fetching authorization token from database by code", () => {
 	it("if token with specified code is not found, return null", async () => {
-		const token = await getAuthorizationTokenByCode("this code does not exist in the database");
+		const token = await findAuthorizationTokenByCode("this code does not exist in the database");
 		expect(token).toBeNull();
 	});
 
 	it("if token with specified code is found, return its data", async () => {
 		const userId = (await findUserByUsername("HellyR"))?.id as string;
 		const codeChallenge = createHash("sha256").update(generateCodeVerifier()).digest("base64url");
-		const code = await createAuthorizationToken(
-			DUMMY_CLIENT_ID,
+		const code = await createAuthorizationToken({
+			clientId: DUMMY_CLIENT_ID,
 			userId,
-			"openid",
 			codeChallenge,
-			"S256",
-		);
+		});
 		const expectedTokenCreationDate = new Date();
 
-		const token = (await getAuthorizationTokenByCode(code)) as AuthorizationTokenData;
+		const token = (await findAuthorizationTokenByCode(code)) as AuthorizationTokenData;
 
 		expect(token?.id).not.toBeFalsy();
 		expect(token?.clientId).toEqual(DUMMY_CLIENT_ID);
@@ -66,7 +64,7 @@ describe("checking if authorization token has expired", () => {
 				],
 			);
 
-			const codeData = (await getAuthorizationTokenByCode(
+			const codeData = (await findAuthorizationTokenByCode(
 				authorizationCode,
 			)) as AuthorizationTokenData;
 
@@ -95,7 +93,7 @@ describe("checking if authorization token has expired", () => {
 			],
 		);
 
-		const codeData = (await getAuthorizationTokenByCode(
+		const codeData = (await findAuthorizationTokenByCode(
 			authorizationCode,
 		)) as AuthorizationTokenData;
 
@@ -124,7 +122,7 @@ describe("checking if authorization token has expired", () => {
 				],
 			);
 
-			const codeData = (await getAuthorizationTokenByCode(
+			const codeData = (await findAuthorizationTokenByCode(
 				authorizationCode,
 			)) as AuthorizationTokenData;
 

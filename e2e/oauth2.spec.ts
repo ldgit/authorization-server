@@ -660,13 +660,11 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 
 	// Create authorization token for the dummy client for the same user, to force a client check in production code.
 	const userId = ((await findUserByUsername("MarkS")) as UserData).id;
-	const differentAuthCode = await createAuthorizationToken(
-		DUMMY_CLIENT_ID,
+	const differentAuthCode = await createAuthorizationToken({
+		clientId: DUMMY_CLIENT_ID,
 		userId,
-		"openid",
 		codeChallenge,
-		"S256",
-	);
+	});
 
 	const formParameters: any = {
 		grant_type: "authorization_code",
@@ -854,13 +852,11 @@ test("/userinfo endpoint should respond with 401 error code if access token has 
 	const user = (await findUserByUsername("DylanG")) as UserData;
 	const codeVerifier = generateCodeVerifier();
 	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
-	const authorizationCode = await createAuthorizationToken(
-		DUMMY_CLIENT_ID,
-		user?.id,
-		"openid",
+	const authorizationCode = await createAuthorizationToken({
+		clientId: DUMMY_CLIENT_ID,
+		userId: user?.id,
 		codeChallenge,
-		"S256",
-	);
+	});
 	const { value: accessToken } = await createAccessTokenForAuthorizationCode(authorizationCode);
 
 	// First test that endpoint still works minutes before expiration.
@@ -892,15 +888,7 @@ test("/userinfo endpoint should respond with 401 error code if access token has 
 
 /**
  * TODO validation for POST /token tests:
- * + one of the parameters is missing: respond with 400 http status code, `error: invalid_request`
- * + redirect uri does not match: respond with 400 http status code, `error: invalid_grant`
- * + code_verifier is of unsupported value: respond with 400 http status code, `error: invalid_request`
- * + authorization code is invalid: respond with 400 http status code, `error: invalid_grant`
- * + authorization code matches client id: respond with 400 http status code, `error: invalid_grant`
- * + unknown grant type: respond with 400 http status code, `error: unsupported_grant_type`
- * + one of the parameters is repeated: respond with 400 http status code, `error: invalid_request`
- * + authorization code is expired: respond with 400 http status code, `error: invalid_grant`
- * + if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
+ * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
  */
 
 function generateCodeVerifier() {

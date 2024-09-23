@@ -256,13 +256,13 @@ export default async function frontend(fastify: FastifyInstance) {
 			}
 
 			const user = (await getSignedInUser(request)) as User;
-			const authorizationCode = await createAuthorizationToken(
-				request.query.client_id,
-				user.id,
-				request.query.scope,
-				request.query.code_challenge,
-				request.query.code_challenge_method,
-			);
+			const authorizationCode = await createAuthorizationToken({
+				clientId: request.query.client_id,
+				userId: user.id,
+				scope: request.query.scope,
+				codeChallenge: request.query.code_challenge,
+				codeChallengeMethod: request.query.code_challenge_method,
+			});
 
 			return reply.redirect(
 				`${request.query.redirect_uri}?code=${authorizationCode}&state=${request.query.state}`,
