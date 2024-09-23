@@ -11,6 +11,7 @@ export interface AuthorizationTokenData {
 	userId: string;
 	codeChallenge: string;
 	codeChallengeMethod: string;
+	revoked: boolean;
 }
 
 interface CreateAuthorizationTokenArguments {
@@ -47,7 +48,7 @@ export async function findAuthorizationTokenByCode(
 	code: string,
 ): Promise<AuthorizationTokenData | null> {
 	const result = await query(
-		"SELECT id, value, scope, created_at, client_id, user_id, code_challenge, code_challenge_method FROM authorization_tokens WHERE value = $1",
+		"SELECT id, value, scope, created_at, client_id, user_id, revoked, code_challenge, code_challenge_method FROM authorization_tokens WHERE value = $1",
 		[code],
 	);
 
@@ -64,9 +65,16 @@ export async function findAuthorizationTokenByCode(
 		userId: tokenData.user_id,
 		value: tokenData.value,
 		scope: tokenData.scope,
+		revoked: tokenData.revoked,
 		codeChallenge: tokenData.code_challenge,
 		codeChallengeMethod: tokenData.code_challenge_method,
 	};
+}
+
+export async function revokeAuthorizationToken(authorizationToken: string) {
+	await query("UPDATE authorization_tokens SET revoked = true WHERE value = $1", [
+		authorizationToken,
+	]);
 }
 
 export function hasAuthorizationTokenExpired(authorizationToken: AuthorizationTokenData): boolean {

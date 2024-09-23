@@ -37,6 +37,7 @@ describe("fetching authorization token from database by code", () => {
 		expect(token?.scope).toEqual("openid");
 		expect(token?.codeChallenge).toEqual(codeChallenge);
 		expect(token?.codeChallengeMethod).toEqual("S256");
+		expect(token?.revoked).toStrictEqual(false);
 		expect(differenceInSeconds(token.createdAt, expectedTokenCreationDate)).toBeLessThan(2);
 	});
 });

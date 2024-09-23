@@ -1,18 +1,19 @@
 import { createHash } from "node:crypto";
 import cryptoRandomString from "crypto-random-string";
 import { differenceInSeconds, subHours } from "date-fns";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DUMMY_CLIENT_ID } from "../../database/createDummyData.js";
 import { query } from "../../database/database.js";
 import { findUserByUsername } from "../user.js";
 import {
 	type AccessTokenData,
-	createAccessTokenForAuthorizationCode,
+	createAccessTokenForAuthorizationToken,
 	extractAccessTokenFromHeader,
 	findAccessTokenByValue,
 	hasTokenExpired,
+	revokeAccessTokenIssuedByAuthorizationToken,
 } from "./accessToken.js";
-import { createAuthorizationToken } from "./authorizationToken.js";
+import { createAuthorizationToken, findAuthorizationTokenByCode } from "./authorizationToken.js";
 
 describe("fetching access token from database by code", () => {
 	it("if token with specified code is not found, return null", async () => {
@@ -30,7 +31,7 @@ describe("fetching access token from database by code", () => {
 			userId,
 			codeChallenge,
 		});
-		const accessToken = await createAccessTokenForAuthorizationCode(authorizationToken);
+		const accessToken = await createAccessTokenForAuthorizationToken(authorizationToken);
 		const expectedTokenCreationDate = new Date();
 
 		const tokenData = (await findAccessTokenByValue(accessToken.value)) as AccessTokenData;
@@ -62,7 +63,7 @@ describe("generating access token", () => {
 		});
 
 		const { value, scope, expiresIn } =
-			await createAccessTokenForAuthorizationCode(authorizationToken);
+			await createAccessTokenForAuthorizationToken(authorizationToken);
 
 		expect(value).not.toBeFalsy();
 		expect(value.length).toEqual(64);
@@ -72,7 +73,7 @@ describe("generating access token", () => {
 
 	it("generating access token should throw error if provided authorization token does not exist", async () => {
 		await expect(
-			async () => await createAccessTokenForAuthorizationCode("this auth code does not exist"),
+			async () => await createAccessTokenForAuthorizationToken("this auth code does not exist"),
 		).rejects.toThrowError("Authorization code not found.");
 	});
 
@@ -87,10 +88,10 @@ describe("generating access token", () => {
 			codeChallenge,
 		});
 
-		await createAccessTokenForAuthorizationCode(authorizationToken);
+		await createAccessTokenForAuthorizationToken(authorizationToken);
 
 		await expect(
-			async () => await createAccessTokenForAuthorizationCode(authorizationToken),
+			async () => await createAccessTokenForAuthorizationToken(authorizationToken),
 		).rejects.toThrowError("Authorization code already has an access token.");
 	});
 });
@@ -158,6 +159,58 @@ describe("hasTokenExpired", () => {
 				...notRelevantData,
 			}),
 		).toStrictEqual(false);
+	});
+});
+
+describe("revokeAccessTokenForCode", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("should delete access token issued for the code and revoke the authorization code", async () => {
+		const userId = (await findUserByUsername("HellyR"))?.id as string;
+		const codeChallenge = createHash("sha256")
+			.update(generateRandomString({ length: 64 }))
+			.digest("base64url");
+		const authorizationToken = await createAuthorizationToken({
+			clientId: DUMMY_CLIENT_ID,
+			userId,
+			codeChallenge,
+		});
+		const accessToken = await createAccessTokenForAuthorizationToken(authorizationToken);
+
+		await revokeAccessTokenIssuedByAuthorizationToken(authorizationToken);
+
+		expect(await findAccessTokenByValue(accessToken.value)).toBeNull();
+		expect((await findAuthorizationTokenByCode(authorizationToken))?.revoked).toStrictEqual(true);
+	});
+
+	it("should log a warning if authorization token does not exist", async () => {
+		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		await revokeAccessTokenIssuedByAuthorizationToken("some_nonexistent_authorization_token");
+
+		expect(consoleWarnSpy).toHaveBeenCalledOnce();
+		expect(consoleWarnSpy).toHaveBeenCalledWith(
+			"Revocation error: authorization token does not exist",
+		);
+	});
+
+	it("should do nothing if access token does not exist for authorization token", async () => {
+		const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const userId = (await findUserByUsername("HellyR"))?.id as string;
+		const codeChallenge = createHash("sha256")
+			.update(generateRandomString({ length: 64 }))
+			.digest("base64url");
+		const authorizationToken = await createAuthorizationToken({
+			clientId: DUMMY_CLIENT_ID,
+			userId,
+			codeChallenge,
+		});
+
+		await revokeAccessTokenIssuedByAuthorizationToken(authorizationToken);
+
+		expect(consoleWarnSpy).not.toHaveBeenCalled();
 	});
 });
 

@@ -11,7 +11,7 @@ import {
 	DUMMY_CLIENT_SECRET,
 } from "../database/createDummyData.js";
 import { query } from "../database/database.js";
-import { createAccessTokenForAuthorizationCode } from "../library/oauth2/accessToken.js";
+import { createAccessTokenForAuthorizationToken } from "../library/oauth2/accessToken.js";
 import { createAuthorizationToken } from "../library/oauth2/authorizationToken.js";
 import { type UserData, findUserByUsername } from "../library/user.js";
 import type { AccessTokenRequestQueryParams } from "../routes/api.js";
@@ -779,7 +779,6 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 }) => {
 	const codeVerifier = generateCodeVerifier();
 	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
-
 	const userId = ((await findUserByUsername("MarkS")) as UserData).id;
 	const authorizationCode = cryptoRandomString({ length: 64, characters: "alphanumeric" });
 	// Set up so the user has already approved the authorization request and we manually create the
@@ -815,6 +814,69 @@ test("/token endpoint should respond with 400 status code and invalid_grant erro
 	expect(response.statusText()).toEqual("Bad Request");
 	expect(await response.json()).toEqual({ error: "invalid_grant" });
 	expectTokenEndpointHeadersAreCorrect(response.headers());
+});
+
+test("/token endpoint should revoke all access tokens previously issued from an authorization code if that code is used twice", async ({
+	request,
+}) => {
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const userId = ((await findUserByUsername("MarkS")) as UserData).id;
+	// Create an authorization code that was already used to get an access token.
+	const authorizationCode = await createAuthorizationToken({
+		clientId: DUMMY_CLIENT_ID,
+		codeChallenge,
+		userId,
+	});
+	const accessToken = await createAccessTokenForAuthorizationToken(authorizationCode);
+	// Guard assertion that checks that access token initially works for fetching user info.
+	await assertUserinfoEndpointWorks(accessToken.value, {
+		sub: userId,
+		preferred_username: "MarkS",
+		given_name: "Mark",
+		family_name: "Scout",
+	});
+
+	const tokenRequestParameters = {
+		grant_type: "authorization_code",
+		redirect_uri: DUMMY_CLIENT_REDIRECT_URI,
+		code: authorizationCode,
+		code_verifier: codeVerifier,
+	};
+	const tokenResponse = await request.post("/api/v1/token", {
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Authorization: `Basic ${base64encode(`${DUMMY_CLIENT_ID}:${DUMMY_CLIENT_SECRET}`)}`,
+		},
+		form: tokenRequestParameters,
+	});
+
+	expect(tokenResponse.status()).toEqual(400);
+	expect(tokenResponse.statusText()).toEqual("Bad Request");
+	expect(await tokenResponse.json()).toEqual({ error: "invalid_grant" });
+	expectTokenEndpointHeadersAreCorrect(tokenResponse.headers());
+
+	// Trying to use old access token to fetch user info will not work now.
+	const response = await request.get("/api/v1/userinfo", {
+		headers: { Authorization: `Bearer ${base64encode(accessToken.value)}` },
+	});
+	expect(response.status()).toEqual(401);
+	expect(response.statusText()).toEqual("Unauthorized");
+	expect(response.headers()["www-authenticate"]).toEqual("Bearer");
+	expect(await response.json()).toEqual({ error: "invalid_token" });
+
+	// Requesting the access token with the same authorization token will also not work.
+	const secondTokenResponse = await request.post("/api/v1/token", {
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			Authorization: `Basic ${base64encode(`${DUMMY_CLIENT_ID}:${DUMMY_CLIENT_SECRET}`)}`,
+		},
+		form: tokenRequestParameters,
+	});
+	expect(secondTokenResponse.status()).toEqual(400);
+	expect(secondTokenResponse.statusText()).toEqual("Bad Request");
+	expect(await secondTokenResponse.json()).toEqual({ error: "invalid_grant" });
+	expectTokenEndpointHeadersAreCorrect(secondTokenResponse.headers());
 });
 
 test("/userinfo endpoint should respond with 401 error code if access token is invalid", async ({
@@ -857,7 +919,7 @@ test("/userinfo endpoint should respond with 401 error code if access token has 
 		userId: user?.id,
 		codeChallenge,
 	});
-	const { value: accessToken } = await createAccessTokenForAuthorizationCode(authorizationCode);
+	const { value: accessToken } = await createAccessTokenForAuthorizationToken(authorizationCode);
 
 	// First test that endpoint still works minutes before expiration.
 	await query("UPDATE access_tokens SET created_at = $1 WHERE value = $2", [
@@ -885,11 +947,6 @@ test("/userinfo endpoint should respond with 401 error code if access token has 
 	expect(response.headers()["www-authenticate"]).toEqual("Bearer");
 	expect(await response.json()).toEqual({ error: "invalid_token" });
 });
-
-/**
- * TODO validation for POST /token tests:
- * - if access token is requested twice for the same auth code, access_token is invalidated and user must sign in again
- */
 
 function generateCodeVerifier() {
 	return cryptoRandomString({

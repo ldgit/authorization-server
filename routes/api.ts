@@ -1,10 +1,11 @@
 import * as argon2 from "argon2";
 import type { FastifyInstance } from "fastify";
 import {
-	createAccessTokenForAuthorizationCode,
+	createAccessTokenForAuthorizationToken,
 	extractAccessTokenFromHeader,
 	findAccessTokenByValue,
 	hasTokenExpired,
+	revokeAccessTokenIssuedByAuthorizationToken,
 } from "../library/oauth2/accessToken.js";
 import {
 	findAuthorizationTokenByCode,
@@ -62,6 +63,7 @@ export default async function frontend(fastify: FastifyInstance) {
 		if (
 			authorizationTokenData === null ||
 			authorizationTokenData.clientId !== clientId ||
+			authorizationTokenData.revoked === true ||
 			hasAuthorizationTokenExpired(authorizationTokenData)
 		) {
 			return reply.code(400).send({ error: "invalid_grant" });
@@ -71,13 +73,29 @@ export default async function frontend(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "invalid_request" });
 		}
 
-		const { value, scope, expiresIn } = await createAccessTokenForAuthorizationCode(code);
+		let accessTokenData: {
+			value: string;
+			expiresIn: number;
+			scope: string;
+		};
+
+		try {
+			accessTokenData = await createAccessTokenForAuthorizationToken(code);
+		} catch (error: any) {
+			if (error.message === "Authorization code already has an access token.") {
+				await revokeAccessTokenIssuedByAuthorizationToken(code);
+
+				return reply.code(400).send({ error: "invalid_grant" });
+			}
+
+			throw error;
+		}
 
 		return reply.send({
-			access_token: value,
+			access_token: accessTokenData.value,
 			token_type: "Bearer",
-			expires_in: expiresIn,
-			scope,
+			expires_in: accessTokenData.expiresIn,
+			scope: accessTokenData.scope,
 		});
 	});
 

@@ -1,7 +1,7 @@
 import cryptoRandomString from "crypto-random-string";
 import { addSeconds, isFuture } from "date-fns";
 import { query } from "../../database/database.js";
-import { findAuthorizationTokenByCode } from "./authorizationToken.js";
+import { findAuthorizationTokenByCode, revokeAuthorizationToken } from "./authorizationToken.js";
 
 export interface AccessTokenData {
 	id: number;
@@ -18,7 +18,7 @@ export interface AccessTokenData {
 /**
  * Generates an access token that lasts for 24 hours.
  */
-export async function createAccessTokenForAuthorizationCode(
+export async function createAccessTokenForAuthorizationToken(
 	authorizationToken: string,
 ): Promise<{ value: string; expiresIn: number; scope: string }> {
 	const value = cryptoRandomString({
@@ -90,4 +90,18 @@ export function extractAccessTokenFromHeader(authorizationHeader: string): strin
 
 export function hasTokenExpired(accessTokenData: AccessTokenData): boolean {
 	return !isFuture(addSeconds(accessTokenData.createdAt, accessTokenData.expiresIn));
+}
+
+export async function revokeAccessTokenIssuedByAuthorizationToken(authorizationToken: string) {
+	const authorizationCodeData = await findAuthorizationTokenByCode(authorizationToken);
+
+	if (authorizationCodeData === null) {
+		console.warn("Revocation error: authorization token does not exist");
+		return;
+	}
+
+	await revokeAuthorizationToken(authorizationToken);
+	await query("DELETE FROM access_tokens WHERE authorization_token_id = $1", [
+		authorizationCodeData.id,
+	]);
 }
