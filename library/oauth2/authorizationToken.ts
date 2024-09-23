@@ -3,7 +3,7 @@ import { differenceInSeconds, isAfter } from "date-fns";
 import { query } from "../../database/database.js";
 
 export interface AuthorizationTokenData {
-	id: string;
+	id: number;
 	value: string;
 	scope: string;
 	createdAt: Date;

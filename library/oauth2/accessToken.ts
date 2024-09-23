@@ -20,7 +20,7 @@ export interface AccessTokenData {
  */
 export async function createAccessTokenForAuthorizationToken(
 	authorizationToken: string,
-): Promise<{ value: string; expiresIn: number; scope: string }> {
+): Promise<AccessTokenData> {
 	const value = cryptoRandomString({
 		length: 64,
 		characters: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~",
@@ -33,25 +33,34 @@ export async function createAccessTokenForAuthorizationToken(
 
 	const queryResult = await query(
 		"SELECT id FROM access_tokens WHERE authorization_token_id = $1",
-		[authorizationTokenData.id],
+		[authorizationTokenData.id.toString()],
 	);
 	if (queryResult.rowCount !== null && queryResult.rowCount > 0) {
 		throw new Error("Authorization code already has an access token.");
 	}
 
-	await query(
-		"INSERT INTO access_tokens(value, scope, client_id, user_id, authorization_token_id, expires_in) VALUES($1, $2, $3, $4, $5, $6)",
+	const insertResult = await query(
+		"INSERT INTO access_tokens(value, scope, client_id, user_id, authorization_token_id, expires_in) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
 		[
 			value,
 			authorizationTokenData?.scope,
 			authorizationTokenData?.clientId,
 			authorizationTokenData?.userId,
-			authorizationTokenData?.id,
+			authorizationTokenData?.id.toString(),
 			"86400",
 		],
 	);
 
-	return { value, expiresIn: 86400, scope: authorizationTokenData?.scope };
+	return {
+		value,
+		expiresIn: 86400,
+		scope: authorizationTokenData?.scope,
+		authorizationTokenId: authorizationTokenData.id,
+		clientId: authorizationTokenData.clientId,
+		createdAt: insertResult.rows[0].created_at,
+		id: insertResult.rows[0].id,
+		userId: authorizationTokenData?.userId,
+	};
 }
 
 export async function findAccessTokenByValue(accessToken: string): Promise<AccessTokenData | null> {
@@ -102,6 +111,6 @@ export async function revokeAccessTokenIssuedByAuthorizationToken(authorizationT
 
 	await revokeAuthorizationToken(authorizationToken);
 	await query("DELETE FROM access_tokens WHERE authorization_token_id = $1", [
-		authorizationCodeData.id,
+		authorizationCodeData.id.toString(),
 	]);
 }

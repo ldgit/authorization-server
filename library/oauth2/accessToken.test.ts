@@ -61,14 +61,29 @@ describe("generating access token", () => {
 			userId,
 			codeChallenge,
 		});
+		const expectedCreationDate = new Date();
 
-		const { value, scope, expiresIn } =
-			await createAccessTokenForAuthorizationToken(authorizationToken);
+		const {
+			id,
+			value,
+			scope,
+			expiresIn,
+			authorizationTokenId,
+			clientId,
+			userId: actualUserId,
+			createdAt,
+		} = await createAccessTokenForAuthorizationToken(authorizationToken);
 
-		expect(value).not.toBeFalsy();
 		expect(value.length).toEqual(64);
 		expect(scope).toEqual("openid");
 		expect(expiresIn).toStrictEqual(86400);
+		expect(clientId).toEqual(DUMMY_CLIENT_ID);
+		expect(actualUserId).toEqual(userId);
+		expect(differenceInSeconds(createdAt, expectedCreationDate)).toBeLessThan(2);
+		expect(id).toEqual((await findAccessTokenByValue(value))?.id);
+		expect(authorizationTokenId).toStrictEqual(
+			(await findAuthorizationTokenByCode(authorizationToken))?.id,
+		);
 	});
 
 	it("generating access token should throw error if provided authorization token does not exist", async () => {
