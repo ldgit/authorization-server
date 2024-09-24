@@ -48,9 +48,6 @@ async function signInUser(page: Page, username: string, password: string) {
 	await page.waitForURL("/");
 }
 
-// TODO remove this?
-test.setTimeout(5000);
-
 /**
  * We use PKCE flow.
  *
