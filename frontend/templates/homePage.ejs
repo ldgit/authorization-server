@@ -2,7 +2,7 @@
 
 <main class="container mx-auto min-w-fit flex flex-col items-center text-center justify-center">
   <% if (user) { %>
-    <h1 class="text-3xl">Welcome  <%= user.name  %> <%= user.surname  %>! 🎉</h1>
+    <h2 class="text-3xl">Welcome  <%= user.name  %> <%= user.surname  %>! 🎉</h1>
   <% } else { %>
     <a href="/register">
       <%- include('button', { color: 'red', type: 'button', text: 'Create new account' }); %>

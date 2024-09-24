@@ -1,6 +1,12 @@
 import * as argon2 from "argon2";
 import { query, transactionQuery } from "../database/database.js";
 
+/** Only for use in tests. */
+export const DUMMY_CLIENT_ID = "23f0706a-f556-477f-a8cb-808bd045384f";
+export const DUMMY_CLIENT_NAME = "Lumon Industries";
+export const DUMMY_CLIENT_REDIRECT_URI = "http://127.0.0.1:3000/";
+export const DUMMY_CLIENT_SECRET = "secret_123";
+
 /**
  * Fills the database with dummy data.
  *
@@ -8,10 +14,11 @@ import { query, transactionQuery } from "../database/database.js";
  */
 export async function createDummyData() {
 	const password = "test";
-	await query("TRUNCATE clients");
-	await query("TRUNCATE sessions, users");
 
-	console.log("Creating dummy data ");
+	console.log("Deleting all existing data");
+	await query("TRUNCATE clients, authorization_tokens, access_tokens, sessions, users");
+
+	console.log("Creating dummy data");
 
 	await transactionQuery(
 		async (client) => {
@@ -27,7 +34,24 @@ export async function createDummyData() {
 			hash = await argon2.hash(password);
 			await client.query(queryText, ["Irving", "Bailiff", "IrvingB", hash]);
 			console.log("Created user IrvingB");
+			await client.query(queryText, ["Dylan", "George", "DylanG", hash]);
+			console.log("Created user DylanG");
 			console.log('All users use same password: "test"');
+			console.log("---");
+
+			console.log("Creating clients");
+			await client.query(
+				"INSERT INTO clients(id, name, redirect_uri, secret, description) VALUES($1, $2, $3, $4, $5) RETURNING id",
+				[
+					DUMMY_CLIENT_ID,
+					DUMMY_CLIENT_NAME,
+					DUMMY_CLIENT_REDIRECT_URI,
+					await argon2.hash(DUMMY_CLIENT_SECRET),
+					"A dummy client used for testing and development purposes.",
+				],
+			);
+			console.log(`Created a test client ${DUMMY_CLIENT_NAME} (id: ${DUMMY_CLIENT_ID})`);
+			console.log(`Client redirect URI: ${DUMMY_CLIENT_REDIRECT_URI}`);
 		},
 		{ destroyClient: true },
 	);

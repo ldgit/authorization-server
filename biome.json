@@ -8,10 +8,12 @@
 		"rules": {
 			"recommended": true,
 			"complexity": {
-				"useArrowFunction": "off"
+				"useArrowFunction": "off",
+				"noForEach": "off"
 			},
 			"suspicious": {
-				"useAwait": "error"
+				"useAwait": "error",
+				"noExplicitAny": "off"
 			}
 		}
 	},

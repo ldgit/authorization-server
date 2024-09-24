@@ -1,0 +1,9 @@
+<%- include('./header', { title: "Error" }); %>
+
+<main class="container mx-auto min-w-fit flex flex-col items-center text-center justify-center">
+  <% if (errorType === 'redirect-uri') { %>
+    <h2 class="text-2xl">The redirect_uri query parameter is missing or not allowed.</h2>  
+  <% } else if (errorType === 'client-id') { %>
+    <h2 class="text-2xl"><%= `Client with "${clientId}" id does not exist.` %></h2>  
+  <% } %>
+</main>
