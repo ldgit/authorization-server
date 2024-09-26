@@ -398,6 +398,29 @@ test("/authorize endpoint should redirect with access_denied error code if user 
 	expect(searchParams.get("error")).toEqual("access_denied");
 });
 
+test('/authorize endpoint response should include "frame busting" headers', async ({ request }) => {
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const state = cryptoRandomString({ length: 16, type: "alphanumeric" });
+
+	const loginResponse = request.post("/login", {
+		form: { username: "MarkS", password: "test" },
+	});
+	expect((await loginResponse).status()).toEqual(200);
+
+	const response = await request.get(
+		`/authorize?response_type=code&client_id=${DUMMY_CLIENT_ID}&redirect_uri=${DUMMY_CLIENT_REDIRECT_URI}&scope=openid&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+		{ maxRedirects: 0 },
+	);
+
+	expect(response.status()).toEqual(200);
+	expect(response.headers()["x-frame-options"]).toEqual("SAMEORIGIN");
+	expect(response.headers()).toHaveProperty("content-security-policy");
+	expect(response.headers()["content-security-policy"].split(";")).toContain(
+		"frame-ancestors 'self'",
+	);
+});
+
 ["grant_type", "redirect_uri", "code", "code_verifier"].forEach((missingParameter: string) => {
 	test(`/token endpoint should respond with 400 error code if ${missingParameter} parameter is missing`, async ({
 		page,

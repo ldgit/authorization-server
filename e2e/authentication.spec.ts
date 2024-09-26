@@ -15,6 +15,17 @@ test("Login happy path", async ({ page }) => {
 	await expect(page.getByRole("heading", { name: "Welcome Mark Scout! 🎉" })).toBeVisible();
 });
 
+test('/login response should include "frame busting" headers', async ({ request }) => {
+	const loginResponse = await request.get("/login", { maxRedirects: 0 });
+
+	expect(loginResponse.status()).toEqual(200);
+	expect(loginResponse.headers()["x-frame-options"]).toEqual("SAMEORIGIN");
+	expect(loginResponse.headers()).toHaveProperty("content-security-policy");
+	expect(loginResponse.headers()["content-security-policy"].split(";")).toContain(
+		"frame-ancestors 'self'",
+	);
+});
+
 test("Sign out path", async ({ page }) => {
 	await page.goto("/login");
 
