@@ -19,7 +19,7 @@ async function main() {
 	try {
 		await client.connect();
 		const postgrator = new Postgrator({
-			migrationPattern: `${__dirname}/../migrations/*`,
+			migrationPattern: `${__dirname}/../database/migrations/*`,
 			driver: "pg",
 			database: process.env.POSTGRES_DB,
 			schemaTable: "migrations",
